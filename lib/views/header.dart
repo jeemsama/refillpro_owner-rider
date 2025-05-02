@@ -29,7 +29,7 @@ class AppHeader extends StatelessWidget {
           BoxShadow(
             color: Color(0x3F000000),
             blurRadius: 4,
-            offset: Offset(0, 4),
+            offset: Offset(0, 4), 
             spreadRadius: 0,
           ),
         ],
@@ -38,8 +38,3 @@ class AppHeader extends StatelessWidget {
   }
 }
 
-/// Example usage:
-///
-/// ```dart
-/// AppHeader()
-/// ```
