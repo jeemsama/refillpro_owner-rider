@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/registration.dart';
-import 'package:refillpro_owner_rider/views/owner%20screen/home.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
 
 void main() {
   runApp(const MyApp());

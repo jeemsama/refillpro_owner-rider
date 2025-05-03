@@ -38,28 +38,26 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
     final double iconSize = _getResponsiveIconSize(screenSize);
 
     return Container(
-      alignment: Alignment.center,
-      child: Container(
-        width: navBarWidth,
-        height: navBarHeight,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(navBarHeight / 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x3F000000),
-              blurRadius: 4,
-              offset: Offset(0, 4),
-              spreadRadius: 0,
-            )
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(
-            navIcons.length,
-            (index) => _buildNavItem(navIcons[index], index, iconSize),
-          ),
+      width: navBarWidth,
+      height: navBarHeight,
+      margin: const EdgeInsets.symmetric(horizontal: 20.0),
+      decoration: BoxDecoration(
+        color: Color(0xFFF5F7F8),
+        borderRadius: BorderRadius.circular(navBarHeight / 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3F000000),
+            blurRadius: 4,
+            offset: Offset(0, 4),
+            spreadRadius: 0,
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(
+          navIcons.length,
+          (index) => _buildNavItem(navIcons[index], index, iconSize),
         ),
       ),
     );
