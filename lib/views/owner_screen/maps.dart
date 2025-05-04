@@ -5,6 +5,9 @@ import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/orders.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/profile.dart';
 
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
 class Maps extends StatefulWidget {
   const Maps({super.key});
 
@@ -13,7 +16,7 @@ class Maps extends StatefulWidget {
 }
 
 class _MapsState extends State<Maps> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
 
   // All your tab screens here
   final List<Widget> _screens = const [
@@ -90,17 +93,35 @@ class MapsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color.fromARGB(255, 241, 236, 236),
+      color: const Color(0xFFF1EFEC),
       alignment: Alignment.center,
-      child: const Text(
-        'Map Page',
-        style: TextStyle(
-          fontSize: 22,
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
+      child: FlutterMap(
+        options: MapOptions(
+          initialCenter: LatLng(17.6132, 121.7270), // Tuguegarao City, Philippines coordinates
+          initialZoom: 18.0,
         ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.example.app',
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: LatLng(17.6132, 121.7270), // Tuguegarao City, Philippines
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
-

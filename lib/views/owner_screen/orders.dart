@@ -13,7 +13,7 @@ class Orders extends StatefulWidget {
 }
 
 class _OrdersState extends State<Orders> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 2;
 
   // All your tab screens here
   final List<Widget> _screens = const [
@@ -83,23 +83,391 @@ class _OrdersState extends State<Orders> {
 }
 
 
+
+
+
+
+
+
 class OrdersContent extends StatelessWidget {
   const OrdersContent({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    
+    // Calculate scale factor based on design width (401)
+    final widthScaleFactor = screenWidth / 401;
+    
+    // Function to scale dimensions
+    double w(double value) => value * widthScaleFactor;
+    double h(double value) => value * widthScaleFactor; // Using same scale for height for proportional scaling
+    
+    // Function to scale text
+    
     return Container(
       color: const Color(0xFFF1EFEC),
-      alignment: Alignment.center,
-      child: const Text(
-        'Order Page',
-        style: TextStyle(
-          fontSize: 22,
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.w500,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: h(15), horizontal: w(0)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              OrderCard(
+                widthScaleFactor: widthScaleFactor,
+                customerName: 'Jaymark Ancheta',
+                phoneNumber: '0912-3234-234',
+                orderType: 'Borrow gallon',
+                message: 'Message here Message hereMessage hereMessage hereMessage hereMessage',
+                price: '₱0.0',
+                status: 'Pending',
+              ),
+              // You can add more OrderCard widgets here
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+class OrderCard extends StatelessWidget {
+  final double widthScaleFactor;
+  final String customerName;
+  final String phoneNumber;
+  final String orderType;
+  final String message;
+  final String price;
+  final String status;
+
+  const OrderCard({
+    required this.widthScaleFactor,
+    required this.customerName,
+    required this.phoneNumber,
+    required this.orderType,
+    required this.message,
+    required this.price,
+    required this.status,
+    super.key,
+  });
+
+  // Helper functions to scale dimensions
+  double w(double value) => value * widthScaleFactor;
+  double h(double value) => value * widthScaleFactor;
+  double fontSize(double value) => value * widthScaleFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: h(10), horizontal: w(10)),
+      child: SizedBox(
+        width: w(397),
+        height: h(199),
+        child: Stack(
+          children: [
+            // Main card background
+            Positioned(
+              left: w(5.5),
+              top: 0,
+              child: Container(
+                width: w(370),
+                height: h(199),
+                decoration: ShapeDecoration(
+                  color: const Color(0xFF1F2937),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(w(10)),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Regular gallon image and x2 text
+            Positioned(
+              left: w(48),
+              top: h(127),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    width: w(38),
+                    height: h(54),
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage("images/regular.png"),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: h(-9),
+                    child: SizedBox(
+                      width: w(12),
+                      height: h(9),
+                      child: Text(
+                        'x2',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize(7),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Dispenser gallon image and x2 text
+            Positioned(
+              left: w(110),
+              top: h(127),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    width: w(31),
+                    height: h(54),
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage("images/dispenser.png"),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: h(-9),
+                    child: SizedBox(
+                      width: w(12),
+                      height: h(9),
+                      child: Text(
+                        'x2',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize(7),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Price text
+            Positioned(
+              left: w(320),
+              top: h(171),
+              child: SizedBox(
+                width: w(37),
+                height: h(16),
+                child: Text(
+                  price,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(14),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Status text
+            Positioned(
+              left: w(290),
+              top: h(17),
+              child: SizedBox(
+                width: w(64.66),
+                height: h(14),
+                child: Row(
+                  children: [
+                    Text(
+                      status,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: fontSize(13),
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    SizedBox(width: w(2)),
+                    Icon(
+                      Icons.access_time,
+                      color: Colors.white,
+                      size: w(10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Location text
+            Positioned(
+              left: w(3),
+              top: h(59),
+              child: SizedBox(
+                width: w(157),
+                height: h(14),
+                child: Text(
+                  'Tap to view location',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(7),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Customer name
+            Positioned(
+              left: w(0),
+              top: h(10),
+              child: SizedBox(
+                width: w(212),
+                height: h(30),
+                child: Text(
+                  customerName,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(13),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Phone number
+            Positioned(
+              left: w(5),
+              top: h(34),
+              child: SizedBox(
+                width: w(157),
+                height: h(14),
+                child: Text(
+                  phoneNumber,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(10),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Order type
+            Positioned(
+              left: w(3),
+              top: h(45),
+              child: SizedBox(
+                width: w(157),
+                height: h(14),
+                child: Text(
+                  orderType,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(10),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Accept button (green)
+            Positioned(
+              left: w(240),
+              top: h(74),
+              child: GestureDetector(
+                onTap: () {
+                  // Add accept action here
+                  debugPrint('Order accepted');
+                },
+                child: Container(
+                  width: w(50),
+                  height: h(50),
+                  decoration: ShapeDecoration(
+                    color: const Color(0xFF5CB338),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(w(5)),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: w(24),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Reject button (red)
+            Positioned(
+              left: w(308),
+              top: h(74),
+              child: GestureDetector(
+                onTap: () {
+                  // Add reject action here
+                  debugPrint('Order rejected');
+                },
+                child: Container(
+                  width: w(50),
+                  height: h(50),
+                  decoration: ShapeDecoration(
+                    color: const Color(0xFFA62C2C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(w(5)),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: w(24),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Message text
+            Positioned(
+              left: w(48),
+              top: h(77),
+              child: SizedBox(
+                width: w(129),
+                height: h(47),
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize(7),
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

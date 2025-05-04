@@ -18,9 +18,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   // List of icons for the navbar
   final List<IconData> navIcons = [
     Icons.grid_view_rounded,   // Home/Dashboard icon
-    Icons.map_outlined,        // Map/Navigation icon
+    Icons.location_pin,        // Map/Navigation icon
     Icons.shopping_cart,       // Cart/Shop icon
-    Icons.person_outline,      // Profile icon
+    Icons.person_2,      // Profile icon
   ];
 
   @override

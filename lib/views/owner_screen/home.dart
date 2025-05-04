@@ -20,7 +20,7 @@ class _HomeState extends State<Home> {
     HomeContent(), // extract your Home screen content into a widget
     MapsContent(),
     OrdersContent(),
-    ProfileContent(),
+    Profile(), // Changed from ProfileContent to Profile
   ];
 
   void _onItemTapped(int index) {
@@ -31,47 +31,56 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    // Don't show header on the Profile tab (index 3)
+    final bool showHeader = _selectedIndex != 3;
+    
+    // Don't show navbar on the Profile tab (index 3)
+    final bool showNavbar = _selectedIndex != 3;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1EFEC),
       body: Stack(
         children: [
-          // Header at top (outside SafeArea)
-          const Positioned(
-            top: 50,
-            left: 0,
-            right: 0,
-            child: AppHeader(),
-          ),
+          // Header at top (outside SafeArea) - only show if not on Profile tab
+          if (showHeader)
+            const Positioned(
+              top: 50,
+              left: 0,
+              right: 0,
+              child: AppHeader(),
+            ),
           
           // Main content and navbar inside SafeArea
           Positioned(
-            top: 83, // Adjust based on your header height
+            // Adjust top position based on whether header is shown
+            top: showHeader ? 83 : 0,
             left: 0,
             right: 0,
             bottom: 0,
             child: SafeArea(
-              top: false, // Don't apply top safe area as header is outside
+              top: !showHeader, // Apply top safe area if header is not shown
               child: Stack(
                 children: [
-                  // Main content
+                  // Main content - extend to bottom of screen
                   Positioned(
-                    top: 1,
+                    top: 0,
                     left: 0,
                     right: 0,
-                    bottom: 0, // Adjust based on navbar height + bottom margin
+                    bottom: showNavbar ? 70 : 0, // Reduced space above navbar
                     child: _screens[_selectedIndex],
                   ),
                   
-                  // Bottom navigation bar positioned at the bottom inside SafeArea
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 30,
-                    child: CustomBottomNavBar(
-                      selectedIndex: _selectedIndex,
-                      onItemTapped: _onItemTapped,
+                  // Bottom navigation bar - only show if not on Profile tab
+                  if (showNavbar)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 30, // Changed from 30 to 0 to remove space below navbar
+                      child: CustomBottomNavBar(
+                        selectedIndex: _selectedIndex,
+                        onItemTapped: _onItemTapped,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -81,7 +90,6 @@ class _HomeState extends State<Home> {
     );
   }
 }
-
 
 
 
