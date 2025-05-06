@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/registration.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
+
 
 void main() {
   runApp(const MyApp());
@@ -33,30 +38,98 @@ class LoginScreen extends StatefulWidget {
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
+  
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
+  
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
+    
     super.dispose();
   }
 
-  void _handleLogin() {
-    // Implement login logic here
-    debugPrint('Login button pressed');
-    debugPrint('Phone: ${_phoneController.text}');
-    debugPrint('Password: ${_passwordController.text}');
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Home()),
+void _handleLogin() async {
+  final email = _emailController.text.trim();
+  final password = _passwordController.text;
+
+  if (email.isEmpty || password.isEmpty) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter both email and password')),
+    );
+    return;
+  }
+
+  final url = Uri.parse('http://192.168.1.23:8000/api/login'); // your API endpoint
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
     );
 
+    final data = json.decode(response.body);
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200 && data['token'] != null && data['user'] != null) {
+      final token = data['token'] ?? '';
+      final user = data['user'] as Map<String, dynamic>;
+
+      final role = user['role']?.toString() ?? '';
+      final status = user['status']?.toString() ?? '';
+      final userId = user['id'] is int ? user['id'] : int.tryParse(user['id']?.toString() ?? '0') ?? 0;
+
+      if (status != 'approved') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account not approved yet')),
+        );
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      await prefs.setString('role', role);
+      await prefs.setInt('user_id', userId);
+
+      debugPrint('Token: $token');
+      debugPrint('Role: $role');
+      debugPrint('User ID: $userId');
+
+      if (role == 'owner') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Home()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsupported role')),
+        );
+      }
+    } else {
+      final errorMessage = data['message']?.toString() ?? 'Login failed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
   }
+}
+
+
+
+
 
   void _handleRegister() {
     // Implement registration navigation here
@@ -149,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(
                             width: screenWidth * 0.2, // 20% of width
                             child: Text(
-                              'Phone:',
+                              'Email:',
                               style: TextStyle(
                                 color: const Color(0xFFE5E7EB),
                                 fontSize: labelFontSize,
@@ -161,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           Expanded(
                             child: TextField(
-                              controller: _phoneController,
+                              controller: _emailController,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
@@ -186,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         children: [
                           SizedBox(
-                            width: screenWidth * 0.2, // 20% of width
+                            width: screenWidth * 0.2,
                             child: Text(
                               'Password:',
                               style: TextStyle(
@@ -201,17 +274,29 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             child: TextField(
                               controller: _passwordController,
-                              obscureText: true,
+                              obscureText: !_isPasswordVisible,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.025, // 2.5% of width
+                                  horizontal: screenWidth * 0.025,
                                   vertical: 0,
                                 ),
                                 border: OutlineInputBorder(
                                   borderSide: BorderSide.none,
                                   borderRadius: BorderRadius.circular(16),
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                    size: 16, 
+                                    color: Colors.grey[600],
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordVisible = !_isPasswordVisible;
+                                    });
+                                  },
                                 ),
                               ),
                               style: TextStyle(fontSize: labelFontSize * 0.9),

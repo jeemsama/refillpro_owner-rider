@@ -40,24 +40,24 @@ class _RegistrationState extends State<Registration> {
 
 
 
-  Map<String, bool> selectedGallons = {
-    'has_regular_gallon': false,
-    'has_dispenser_gallon': false,
-    'has_small_gallon': false,
-  };
+  // Map<String, bool> selectedGallons = {
+  //   'has_regular_gallon': false,
+  //   'has_dispenser_gallon': false,
+  //   'has_small_gallon': false,
+  // };
 
-  final TextEditingController regularPriceController = TextEditingController(text: "₱30.00");
-  final TextEditingController dispenserPriceController = TextEditingController(text: "₱30.00");
-  final TextEditingController smallPriceController = TextEditingController(text: "₱25.00");
+  // final TextEditingController regularPriceController = TextEditingController(text: "₱30.00");
+  // final TextEditingController dispenserPriceController = TextEditingController(text: "₱30.00");
+  // final TextEditingController smallPriceController = TextEditingController(text: "₱25.00");
 
 
-  Map<String, bool> morningSlots = {
-    "7am": false,
-    "8am": false,
-    "9am": false,
-    "10am": false,
-    "11am": false,
-  };
+  // Map<String, bool> morningSlots = {
+  //   "7am": false,
+  //   "8am": false,
+  //   "9am": false,
+  //   "10am": false,
+  //   "11am": false,
+  // };
   
 
   Map<String, bool> afternoonSlots = {
@@ -124,9 +124,9 @@ class _RegistrationState extends State<Registration> {
     _passwordController.dispose();
     _shopNameController.dispose();
     _addressController.dispose();
-    regularPriceController.dispose();
-    dispenserPriceController.dispose();
-    smallPriceController.dispose();
+    // regularPriceController.dispose();
+    // dispenserPriceController.dispose();
+    // smallPriceController.dispose();
     super.dispose();
   }
 
@@ -209,20 +209,20 @@ Future<void> takePhotoWithCamera() async {
     return false;
   }
   
-  if (!selectedGallons.values.contains(true)) {
-    showErrorSnackBar('Please select at least one gallon type');
-    return false;
-  }
+  // if (!selectedGallons.values.contains(true)) {
+  //   showErrorSnackBar('Please select at least one gallon type');
+  //   return false;
+  // }
   
-  List<String> selectedSlots = [
-    ...morningSlots.entries.where((e) => e.value).map((e) => e.key),
-    ...afternoonSlots.entries.where((e) => e.value).map((e) => e.key),
-  ];
+  // List<String> selectedSlots = [
+  //   ...morningSlots.entries.where((e) => e.value).map((e) => e.key),
+  //   ...afternoonSlots.entries.where((e) => e.value).map((e) => e.key),
+  // ];
   
-  if (selectedSlots.isEmpty) {
-    showErrorSnackBar('Please select at least one delivery time slot');
-    return false;
-  }
+  // if (selectedSlots.isEmpty) {
+  //   showErrorSnackBar('Please select at least one delivery time slot');
+  //   return false;
+  // }
   
   if (!termsAgreed) {
     showErrorSnackBar('You must agree to the terms and conditions');
@@ -242,25 +242,25 @@ void showErrorSnackBar(String message) {
 }
 
 // This function properly formats and returns the selected time slots as an array
-List<String> getSelectedTimeSlots() {
-  List<String> selectedSlots = [];
+// List<String> getSelectedTimeSlots() {
+//   List<String> selectedSlots = [];
   
   // Add morning slots that are selected (true)
-  morningSlots.forEach((time, isSelected) {
-    if (isSelected) {
-      selectedSlots.add(time);
-    }
-  });
+  // morningSlots.forEach((time, isSelected) {
+  //   if (isSelected) {
+  //     selectedSlots.add(time);
+  //   }
+  // });
   
   // Add afternoon slots that are selected (true)
-  afternoonSlots.forEach((time, isSelected) {
-    if (isSelected) {
-      selectedSlots.add(time);
-    }
-  });
+//   afternoonSlots.forEach((time, isSelected) {
+//     if (isSelected) {
+//       selectedSlots.add(time);
+//     }
+//   });
   
-  return selectedSlots;
-}
+//   return selectedSlots;
+// }
 
 
 
@@ -290,7 +290,7 @@ Future<void> submitOwnerRegistration() async {
 
     // Prepare the API URL
     // If testing on an emulator, consider using 10.0.2.2 instead of the IP
-    final uri = Uri.parse('http://192.168.165.30:8000/api/v1/register-owner');
+    final uri = Uri.parse('http://192.168.1.23:8000/api/v1/register-owner');
     debugPrint('Sending request to: $uri');
     
     var request = http.MultipartRequest('POST', uri);
@@ -323,16 +323,16 @@ Future<void> submitOwnerRegistration() async {
 
 
     // Get selected time slots
-    List<String> selectedSlots = getSelectedTimeSlots();
+    // List<String> selectedSlots = getSelectedTimeSlots();
 
     // Check if at least one gallon type is selected
-    if (!selectedGallons.values.contains(true)) {
-      safePop(); // Dismiss loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one gallon type')),
-      );
-      return;
-    }
+    // if (!selectedGallons.values.contains(true)) {
+    //   safePop(); // Dismiss loading indicator
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text('Please select at least one gallon type')),
+    //   );
+    //   return;
+    // }
 
     // Format and add form fields
     request.fields['name'] = _nameController.text.trim();
@@ -346,79 +346,79 @@ Future<void> submitOwnerRegistration() async {
     request.fields['agreed_to_terms'] = termsAgreed ? '1' : '0';
 
 
-    // Utility to sanitize price input
-    String sanitizePrice(String input) {
-      final numeric = RegExp(r'[\d.]+');
-      final match = numeric.allMatches(input.replaceAll(RegExp(r'[₱,\s]'), ''));
-      return match.isNotEmpty ? match.first.group(0) ?? '0' : '0';
-    }
+    // // Utility to sanitize price input
+    // String sanitizePrice(String input) {
+    //   final numeric = RegExp(r'[\d.]+');
+    //   final match = numeric.allMatches(input.replaceAll(RegExp(r'[₱,\s]'), ''));
+    //   return match.isNotEmpty ? match.first.group(0) ?? '0' : '0';
+    // }
     
-    // Utility to check if price is zero and show message
-    bool isZeroPrice(String price, String label, BuildContext context) {
-      if (price == '0' || price == '0.0' || price == '0.00') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please enter a valid price for $label')),
-        );
-        return true;
-      }
-      return false;
-    }
+    // // Utility to check if price is zero and show message
+    // bool isZeroPrice(String price, String label, BuildContext context) {
+    //   if (price == '0' || price == '0.0' || price == '0.00') {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(content: Text('Please enter a valid price for $label')),
+    //     );
+    //     return true;
+    //   }
+    //   return false;
+    // }
     
     // Process gallon types with proper price formatting
-    bool hasZeroPrice = false;
+  //   bool hasZeroPrice = false;
     
-    if (selectedGallons['has_regular_gallon'] == true) {
-      String price = sanitizePrice(regularPriceController.text);
-      if (isZeroPrice(price, "Regular Gallon", context)) hasZeroPrice = true;
-      request.fields['has_regular_gallon'] = '1';
-      request.fields['regular_gallon_price'] = price;
-      debugPrint('Regular price: $price');
-    } else {
-      request.fields['has_regular_gallon'] = '0';
-    }
+  //   if (selectedGallons['has_regular_gallon'] == true) {
+  //     String price = sanitizePrice(regularPriceController.text);
+  //     if (isZeroPrice(price, "Regular Gallon", context)) hasZeroPrice = true;
+  //     request.fields['has_regular_gallon'] = '1';
+  //     request.fields['regular_gallon_price'] = price;
+  //     debugPrint('Regular price: $price');
+  //   } else {
+  //     request.fields['has_regular_gallon'] = '0';
+  //   }
     
-    if (selectedGallons['has_dispenser_gallon'] == true) {
-      String price = sanitizePrice(dispenserPriceController.text);
-      if (isZeroPrice(price, "Dispenser Gallon", context)) hasZeroPrice = true;
-      request.fields['has_dispenser_gallon'] = '1';
-      request.fields['dispenser_gallon_price'] = price;
-      debugPrint('Dispenser price: $price');
-    } else {
-      request.fields['has_dispenser_gallon'] = '0';
-    }
+  //   if (selectedGallons['has_dispenser_gallon'] == true) {
+  //     String price = sanitizePrice(dispenserPriceController.text);
+  //     if (isZeroPrice(price, "Dispenser Gallon", context)) hasZeroPrice = true;
+  //     request.fields['has_dispenser_gallon'] = '1';
+  //     request.fields['dispenser_gallon_price'] = price;
+  //     debugPrint('Dispenser price: $price');
+  //   } else {
+  //     request.fields['has_dispenser_gallon'] = '0';
+  //   }
     
-    if (selectedGallons['has_small_gallon'] == true) {
-      String price = sanitizePrice(smallPriceController.text);
-      if (isZeroPrice(price, "Small Gallon", context)) hasZeroPrice = true;
-      request.fields['has_small_gallon'] = '1';
-      request.fields['small_gallon_price'] = price;
-      debugPrint('Small price: $price');
-    } else {
-      request.fields['has_small_gallon'] = '0';
-    }
+  //   if (selectedGallons['has_small_gallon'] == true) {
+  //     String price = sanitizePrice(smallPriceController.text);
+  //     if (isZeroPrice(price, "Small Gallon", context)) hasZeroPrice = true;
+  //     request.fields['has_small_gallon'] = '1';
+  //     request.fields['small_gallon_price'] = price;
+  //     debugPrint('Small price: $price');
+  //   } else {
+  //     request.fields['has_small_gallon'] = '0';
+  //   }
     
-    // Stop request if any zero price was detected
-    if (hasZeroPrice) return;
+  //   // Stop request if any zero price was detected
+  //   if (hasZeroPrice) return;
 
 
 
-        // Check if at least one time slot is selected
-    if (selectedSlots.isEmpty) {
-      safePop(); // Dismiss loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one delivery time slot')),
-      );
-      return;
-    }
+  //       // Check if at least one time slot is selected
+  //   if (selectedSlots.isEmpty) {
+  //     safePop(); // Dismiss loading indicator
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Please select at least one delivery time slot')),
+  //     );
+  //     return;
+  //   }
 
 
 
 
 
-  // Send as array items
-  for (int i = 0; i < selectedSlots.length; i++) {
-    request.fields['delivery_time_slots[$i]'] = selectedSlots[i];
-  }
+  // // Send as array items
+  // for (int i = 0; i < selectedSlots.length; i++) {
+  //   request.fields['delivery_time_slots[$i]'] = selectedSlots[i];
+  // }
 
 
   //check for terms and coditions
@@ -558,137 +558,137 @@ Future<void> submitOwnerRegistration() async {
 }
 
 
-  // Helper method to build time slot checkbox
-  Widget _buildTimeSlotCheckbox(String time, Map<String, bool> slots) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: Checkbox(
-            value: slots[time],
-            onChanged: (value) {
-              setState(() {
-                slots[time] = value ?? false;
-              });
-            },
-            fillColor: WidgetStateProperty.resolveWith(
-              (states) => states.contains(WidgetState.selected)
-                  ? const Color(0xFF5F8B4C)
-                  : const Color(0xFFD9D9D9),
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          time,
-          style: const TextStyle(
-            color: Color(0xFFE5E7EB),
-            fontSize: 11,
-            fontFamily: 'Roboto',
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
+  // // Helper method to build time slot checkbox
+  // Widget _buildTimeSlotCheckbox(String time, Map<String, bool> slots) {
+  //   return Row(
+  //     mainAxisSize: MainAxisSize.min,
+  //     children: [
+  //       SizedBox(
+  //         width: 24,
+  //         height: 24,
+  //         child: Checkbox(
+  //           value: slots[time],
+  //           onChanged: (value) {
+  //             setState(() {
+  //               slots[time] = value ?? false;
+  //             });
+  //           },
+  //           fillColor: WidgetStateProperty.resolveWith(
+  //             (states) => states.contains(WidgetState.selected)
+  //                 ? const Color(0xFF5F8B4C)
+  //                 : const Color(0xFFD9D9D9),
+  //           ),
+  //         ),
+  //       ),
+  //       const SizedBox(width: 4),
+  //       Text(
+  //         time,
+  //         style: const TextStyle(
+  //           color: Color(0xFFE5E7EB),
+  //           fontSize: 11,
+  //           fontFamily: 'Roboto',
+  //           fontWeight: FontWeight.w500,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
-  // Helper method to build gallon option with blue border for selected items
-  Widget _buildGallonOption(
-    String label,
-    String imagePath,
-    TextEditingController controller,
-    String gallonType,
-    Size screenSize,
-  ) {
-    final isSelected = selectedGallons[gallonType] ?? false;
-    final isSmallScreen = screenSize.width < 400;
+  // // Helper method to build gallon option with blue border for selected items
+  // Widget _buildGallonOption(
+  //   String label,
+  //   String imagePath,
+  //   TextEditingController controller,
+  //   String gallonType,
+  //   Size screenSize,
+  // ) {
+  //   final isSelected = selectedGallons[gallonType] ?? false;
+  //   final isSmallScreen = screenSize.width < 400;
     
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          // Toggle selection instead of replacing
-          selectedGallons[gallonType] = !(selectedGallons[gallonType] ?? false);
-        });
-      },
-      child: Container(
-        width: screenSize.width * 0.25,
-        height: screenSize.height * 0.15,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F2937), // Always dark background
-          borderRadius: BorderRadius.circular(15),
-          border: isSelected 
-              ? Border.all(color: Colors.blue, width: 3.0) // Blue stroke for selected items
-              : null, // No border for unselected items
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Actual image container
-            Container(
-              width: screenSize.width * 0.15,
-              height: screenSize.height * 0.08,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            SizedBox(height: screenSize.height * 0.01),
+  //   return GestureDetector(
+  //     onTap: () {
+  //       setState(() {
+  //         // Toggle selection instead of replacing
+  //         selectedGallons[gallonType] = !(selectedGallons[gallonType] ?? false);
+  //       });
+  //     },
+  //     child: Container(
+  //       width: screenSize.width * 0.25,
+  //       height: screenSize.height * 0.15,
+  //       decoration: BoxDecoration(
+  //         color: const Color(0xFF1F2937), // Always dark background
+  //         borderRadius: BorderRadius.circular(15),
+  //         border: isSelected 
+  //             ? Border.all(color: Colors.blue, width: 3.0) // Blue stroke for selected items
+  //             : null, // No border for unselected items
+  //       ),
+  //       child: Column(
+  //         mainAxisAlignment: MainAxisAlignment.center,
+  //         children: [
+  //           // Actual image container
+  //           Container(
+  //             width: screenSize.width * 0.15,
+  //             height: screenSize.height * 0.08,
+  //             decoration: BoxDecoration(
+  //               borderRadius: BorderRadius.circular(10),
+  //             ),
+  //             child: ClipRRect(
+  //               borderRadius: BorderRadius.circular(10),
+  //               child: Image.asset(
+  //                 imagePath,
+  //                 fit: BoxFit.contain,
+  //               ),
+  //             ),
+  //           ),
+  //           SizedBox(height: screenSize.height * 0.01),
             
-            // Price input field
-            Container(
-              width: screenSize.width * 0.15,
-              height: screenSize.height * 0.03,
-              decoration: BoxDecoration(
-                color: const Color(0xFFD9D9D9),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: TextField(
-                controller: controller,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: isSmallScreen ? 8 : 10,
-                  fontFamily: 'Roboto',
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintText: 'your price',
-                  hintStyle: TextStyle(
-                    color: Colors.black54,
-                    fontSize: isSmallScreen ? 8 : 10,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: screenSize.height * 0.01),
+  //           // Price input field
+  //           Container(
+  //             width: screenSize.width * 0.15,
+  //             height: screenSize.height * 0.03,
+  //             decoration: BoxDecoration(
+  //               color: const Color(0xFFD9D9D9),
+  //               borderRadius: BorderRadius.circular(5),
+  //             ),
+  //             child: TextField(
+  //               controller: controller,
+  //               textAlign: TextAlign.center,
+  //               style: TextStyle(
+  //                 color: Colors.black,
+  //                 fontSize: isSmallScreen ? 8 : 10,
+  //                 fontFamily: 'Roboto',
+  //                 fontWeight: FontWeight.w500,
+  //               ),
+  //               decoration: InputDecoration(
+  //                 border: InputBorder.none,
+  //                 contentPadding: EdgeInsets.zero,
+  //                 hintText: 'your price',
+  //                 hintStyle: TextStyle(
+  //                   color: Colors.black54,
+  //                   fontSize: isSmallScreen ? 8 : 10,
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //           SizedBox(height: screenSize.height * 0.01),
             
-            // Label
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: const Color(0xFFE5E7EB),
-                fontSize: isSmallScreen ? 8 : 10,
-                fontFamily: 'Roboto',
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //           // Label
+  //           Text(
+  //             label,
+  //             textAlign: TextAlign.center,
+  //             style: TextStyle(
+  //               color: const Color(0xFFE5E7EB),
+  //               fontSize: isSmallScreen ? 8 : 10,
+  //               fontFamily: 'Roboto',
+  //               fontWeight: FontWeight.w500,
+  //               height: 1.2,
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -1263,156 +1263,156 @@ Future<void> submitOwnerRegistration() async {
                 
                 SizedBox(height: 20 * heightScale),
                 
-                // Gallons and Delivery Section
-                Container(
-                  width: 362 * widthScale,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF455567),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      width: 1,
-                      color: const Color(0xFF1F2937),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(16 * widthScale),
-                    child: Column(
-                      children: [
-                        // Title
-                        Text(
-                          'Gallons and Delivery',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: isSmallScreen ? 20 : 24,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: 10 * heightScale),
+                // // Gallons and Delivery Section
+                // Container(
+                //   width: 362 * widthScale,
+                //   decoration: BoxDecoration(
+                //     color: const Color(0xFF455567),
+                //     borderRadius: BorderRadius.circular(16),
+                //     border: Border.all(
+                //       width: 1,
+                //       color: const Color(0xFF1F2937),
+                //     ),
+                //   ),
+                //   child: Padding(
+                //     padding: EdgeInsets.all(16 * widthScale),
+                //     child: Column(
+                //       children: [
+                //         // Title
+                //         Text(
+                //           'Gallons and Delivery',
+                //           textAlign: TextAlign.center,
+                //           style: TextStyle(
+                //             color: Colors.white,
+                //             fontSize: isSmallScreen ? 20 : 24,
+                //             fontFamily: 'Poppins',
+                //             fontWeight: FontWeight.w800,
+                //           ),
+                //         ),
+                //         SizedBox(height: 10 * heightScale),
                         
-                        // Instruction text
-                        Text(
-                          'Tap your available gallons and type your price.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: const Color(0xFFE5E7EB),
-                            fontSize: isSmallScreen ? 10 : 12,
-                            fontFamily: 'Roboto',
-                            fontWeight: FontWeight.w500,
-                            height: 1.67,
-                          ),
-                        ),
-                        SizedBox(height: 20 * heightScale),
+                //         // Instruction text
+                //         Text(
+                //           'Tap your available gallons and type your price.',
+                //           textAlign: TextAlign.center,
+                //           style: TextStyle(
+                //             color: const Color(0xFFE5E7EB),
+                //             fontSize: isSmallScreen ? 10 : 12,
+                //             fontFamily: 'Roboto',
+                //             fontWeight: FontWeight.w500,
+                //             height: 1.67,
+                //           ),
+                //         ),
+                //         SizedBox(height: 20 * heightScale),
                         
-                        // Gallon options row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Regular Gallon
-                            _buildGallonOption(
-                              'Regular Gallon',
-                              'images/regular.png',
-                              regularPriceController,
-                              'has_regular_gallon',
-                              screenSize,
-                            ),
+                //         // Gallon options row
+                //         Row(
+                //           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                //           children: [
+                //             // Regular Gallon
+                //             _buildGallonOption(
+                //               'Regular Gallon',
+                //               'images/regular.png',
+                //               regularPriceController,
+                //               'has_regular_gallon',
+                //               screenSize,
+                //             ),
                             
-                            // Dispenser Gallon
-                            _buildGallonOption(
-                              'Dispenser Gallon',
-                              'images/dispenser.png',
-                              dispenserPriceController,
-                              'has_dispenser_gallon',
-                              screenSize,
-                            ),
+                //             // Dispenser Gallon
+                //             _buildGallonOption(
+                //               'Dispenser Gallon',
+                //               'images/dispenser.png',
+                //               dispenserPriceController,
+                //               'has_dispenser_gallon',
+                //               screenSize,
+                //             ),
                             
-                            // Small Gallon
-                            _buildGallonOption(
-                              'Small Gallon',
-                              'images/small.png',
-                              smallPriceController,
-                              'has_small_gallon',
-                              screenSize,
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 30 * heightScale),
+                //             // Small Gallon
+                //             _buildGallonOption(
+                //               'Small Gallon',
+                //               'images/small.png',
+                //               smallPriceController,
+                //               'has_small_gallon',
+                //               screenSize,
+                //             ),
+                //           ],
+                //         ),
+                //         SizedBox(height: 30 * heightScale),
                         
-                        // Delivery time slots instruction
-                        Text(
-                          'Select delivery time slots. This will appear in the customer.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: const Color(0xFFE5E7EB),
-                            fontSize: isSmallScreen ? 10 : 12,
-                            fontFamily: 'Roboto',
-                            fontWeight: FontWeight.w500,
-                            height: 1.67,
-                          ),
-                        ),
-                        SizedBox(height: 20 * heightScale),
+                //         // Delivery time slots instruction
+                //         Text(
+                //           'Select delivery time slots. This will appear in the customer.',
+                //           textAlign: TextAlign.center,
+                //           style: TextStyle(
+                //             color: const Color(0xFFE5E7EB),
+                //             fontSize: isSmallScreen ? 10 : 12,
+                //             fontFamily: 'Roboto',
+                //             fontWeight: FontWeight.w500,
+                //             height: 1.67,
+                //           ),
+                //         ),
+                //         SizedBox(height: 20 * heightScale),
                         
-                        // Morning time slots
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: screenWidth * 0.1,
-                              child: Text(
-                                'Morning:',
-                                style: TextStyle(
-                                  color: const Color(0xFFE5E7EB),
-                                  fontSize: isSmallScreen ? 14 : 10,
-                                  fontFamily: 'Roboto',
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.25,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: morningSlots.keys.map((time) {
-                                  return _buildTimeSlotCheckbox(time, morningSlots);
-                                }).toList(),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20 * heightScale),
+                //         // Morning time slots
+                //         Row(
+                //           children: [
+                //             SizedBox(
+                //               width: screenWidth * 0.1,
+                //               child: Text(
+                //                 'Morning:',
+                //                 style: TextStyle(
+                //                   color: const Color(0xFFE5E7EB),
+                //                   fontSize: isSmallScreen ? 14 : 10,
+                //                   fontFamily: 'Roboto',
+                //                   fontWeight: FontWeight.w500,
+                //                   height: 1.25,
+                //                 ),
+                //               ),
+                //             ),
+                //             Expanded(
+                //               child: Wrap(
+                //                 spacing: 8,
+                //                 runSpacing: 8,
+                //                 children: morningSlots.keys.map((time) {
+                //                   return _buildTimeSlotCheckbox(time, morningSlots);
+                //                 }).toList(),
+                //               ),
+                //             ),
+                //           ],
+                //         ),
+                //         SizedBox(height: 20 * heightScale),
                         
-                        // Afternoon time slots
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: screenWidth * 0.1,
-                              child: Text(
-                                'Afternoon:',
-                                style: TextStyle(
-                                  color: const Color(0xFFE5E7EB),
-                                  fontSize: isSmallScreen ? 14 : 9,
-                                  fontFamily: 'Roboto',
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.25,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: afternoonSlots.keys.map((time) {
-                                  return _buildTimeSlotCheckbox(time, afternoonSlots);
-                                }).toList(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                //         // Afternoon time slots
+                //         Row(
+                //           children: [
+                //             SizedBox(
+                //               width: screenWidth * 0.1,
+                //               child: Text(
+                //                 'Afternoon:',
+                //                 style: TextStyle(
+                //                   color: const Color(0xFFE5E7EB),
+                //                   fontSize: isSmallScreen ? 14 : 9,
+                //                   fontFamily: 'Roboto',
+                //                   fontWeight: FontWeight.w500,
+                //                   height: 1.25,
+                //                 ),
+                //               ),
+                //             ),
+                //             Expanded(
+                //               child: Wrap(
+                //                 spacing: 8,
+                //                 runSpacing: 8,
+                //                 children: afternoonSlots.keys.map((time) {
+                //                   return _buildTimeSlotCheckbox(time, afternoonSlots);
+                //                 }).toList(),
+                //               ),
+                //             ),
+                //           ],
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ),
                 
                 SizedBox(height: 20 * heightScale),
                 
