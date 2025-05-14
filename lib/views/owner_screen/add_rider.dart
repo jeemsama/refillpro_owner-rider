@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -6,7 +5,7 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AddRider extends StatefulWidget {
-  const AddRider({Key? key}) : super(key: key);
+  const AddRider({super.key});
 
   @override
   State<AddRider> createState() => _AddRiderState();
@@ -17,7 +16,11 @@ class RiderItem {
   final String name;
   final String contactNumber;
 
-  RiderItem({required this.id, required this.name, required this.contactNumber});
+  RiderItem({
+    required this.id,
+    required this.name,
+    required this.contactNumber,
+  });
 }
 
 class _AddRiderState extends State<AddRider> {
@@ -67,13 +70,15 @@ class _AddRiderState extends State<AddRider> {
 
     final url = Uri.parse('http://192.168.1.7:8000/api/riders');
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -81,22 +86,26 @@ class _AddRiderState extends State<AddRider> {
         if (decoded is List) {
           list = List<Map<String, dynamic>>.from(decoded);
         } else if (decoded is Map<String, dynamic>) {
-          list = decoded.entries
-              .where((e) => int.tryParse(e.key) != null)
-              .map((e) => Map<String, dynamic>.from(e.value))
-              .toList();
+          list =
+              decoded.entries
+                  .where((e) => int.tryParse(e.key) != null)
+                  .map((e) => Map<String, dynamic>.from(e.value))
+                  .toList();
         } else {
           list = [];
         }
 
         setState(() {
-          riders = list
-              .map((r) => RiderItem(
-                    id: r['id'] as int,
-                    name: r['name'] as String,
-                    contactNumber: r['phone'] as String? ?? '',
-                  ))
-              .toList();
+          riders =
+              list
+                  .map(
+                    (r) => RiderItem(
+                      id: r['id'] as int,
+                      name: r['name'] as String,
+                      contactNumber: r['phone'] as String? ?? '',
+                    ),
+                  )
+                  .toList();
         });
       } else {
         debugPrint('Failed to fetch riders: ${response.statusCode}');
@@ -113,9 +122,9 @@ class _AddRiderState extends State<AddRider> {
     String password = passwordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || contact.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All fields are required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('All fields are required')));
       return;
     }
 
@@ -135,20 +144,22 @@ class _AddRiderState extends State<AddRider> {
 
     try {
       final url = Uri.parse('http://192.168.1.7:8000/api/riders');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'phone': contact,
-          'password': password,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'name': name,
+              'email': email,
+              'phone': contact,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         await _fetchRiders();
@@ -164,24 +175,24 @@ class _AddRiderState extends State<AddRider> {
         setState(() {
           errorMessage = err['message'] ?? 'Failed to add rider';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     } on SocketException catch (e) {
       setState(() {
         errorMessage = 'Network error: ${e.message}';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
     } catch (e) {
       setState(() {
         errorMessage = 'Error: $e';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
     } finally {
       setState(() => isLoading = false);
     }
@@ -194,28 +205,30 @@ class _AddRiderState extends State<AddRider> {
 
     final url = Uri.parse('http://192.168.1.7:8000/api/riders/${rider.id}');
     try {
-      final response = await http.delete(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .delete(
+            url,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         setState(() => riders.removeAt(index));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rider removed')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Rider removed')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Delete failed: ${response.statusCode}')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -223,10 +236,7 @@ class _AddRiderState extends State<AddRider> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Add Rider'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Add Rider'), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -294,22 +304,26 @@ class _AddRiderState extends State<AddRider> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text(
-                      'Add',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+              child:
+                  isLoading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
             ),
           ),
         ],
@@ -336,26 +350,21 @@ class _AddRiderState extends State<AddRider> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           TextField(
             controller: controller,
             focusNode: focusNode,
             keyboardType: keyboardType,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             decoration: const InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 4),
               border: InputBorder.none,
             ),
             onSubmitted: (_) {
-              if (nextFocusNode != null) FocusScope.of(context).requestFocus(nextFocusNode);
+              if (nextFocusNode != null)
+                FocusScope.of(context).requestFocus(nextFocusNode);
             },
           ),
         ],
@@ -376,10 +385,7 @@ class _AddRiderState extends State<AddRider> {
         children: [
           Text(
             'PASSWORD',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
           ),
           Row(
             children: [
@@ -482,7 +488,7 @@ class _AddRiderState extends State<AddRider> {
               ),
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
