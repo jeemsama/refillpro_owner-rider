@@ -8,8 +8,6 @@ import 'package:refillpro_owner_rider/views/rider_screen/maps.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
-
 void main() {
   runApp(const MyApp());
 }
@@ -26,10 +24,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Refill Pro',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Poppins',
-      ),
+      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Poppins'),
       home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
@@ -41,7 +36,6 @@ class LoginScreen extends StatefulWidget {
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
-  
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -54,86 +48,86 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    
+
     super.dispose();
   }
 
-Future<void> _handleLogin() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
-  if (email.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please enter both email and password')),
-    );
-    return;
-  }
-
-  setState(() => isLoading = true);
-  try {
-    final url = Uri.parse('http://192.168.1.7:8000/api/login');
-    final response = await http.post(
-      url,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'email': email, 'password': password}),
-    ).timeout(const Duration(seconds: 10));
-
-    // Will throw if the server returns HTML instead of JSON
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode == 200 && data['token'] != null) {
-      final token  = data['token'] as String;
-      final role   = data['role']  as String? ?? '';
-      // final status = data['user']['status'] as String? ?? '';
-
-      // if (status != 'approved') {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(content: Text('Account not approved yet')),
-      //   );
-      //   return;
-      // }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
-
-      if (role == 'owner') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const Home()),
-        );
-      } else if (role == 'rider') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const Maps()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unsupported role')),
-        );
-      }
-    } else {
-      final error = data['message']?.toString() ?? 'Login failed';
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        const SnackBar(content: Text('Please enter both email and password')),
       );
+      return;
     }
-  } on FormatException {
-    // Catches HTML or invalid JSON
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Server returned invalid data.')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
-  } finally {
-    setState(() => isLoading = false);
+
+    setState(() => isLoading = true);
+    try {
+      final url = Uri.parse('http://192.168.1.43:8000/api/login');
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      // Will throw if the server returns HTML instead of JSON
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && data['token'] != null) {
+        final token = data['token'] as String;
+        final role = data['role'] as String? ?? '';
+        // final status = data['user']['status'] as String? ?? '';
+
+        // if (status != 'approved') {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     const SnackBar(content: Text('Account not approved yet')),
+        //   );
+        //   return;
+        // }
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', token);
+
+        if (role == 'owner') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const Home()),
+          );
+        } else if (role == 'rider') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const Maps()),
+          );
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Unsupported role')));
+        }
+      } else {
+        final error = data['message']?.toString() ?? 'Login failed';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      }
+    } on FormatException {
+      // Catches HTML or invalid JSON
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Server returned invalid data.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => isLoading = false);
+    }
   }
-}
-
-
 
   void _handleRegister() {
     // Implement registration navigation here
@@ -149,20 +143,20 @@ Future<void> _handleLogin() async {
     final screenSize = MediaQuery.of(context).size;
     final screenHeight = screenSize.height;
     final screenWidth = screenSize.width;
-    
+
     // Calculate responsive sizes
     final loginContainerWidth = screenWidth * 0.85; // 85% of screen width
     final buttonWidth = loginContainerWidth * 0.3; // 30% of container width
-    
+
     // Calculate responsive positions
     final logoTopPosition = screenHeight * 0.15; // 15% from top
     final loginContainerBottomPosition = screenHeight * 0.2; // 20% from bottom
-    
+
     // Calculate responsive text sizes
     final titleFontSize = screenWidth * 0.06; // 6% of width
     final labelFontSize = screenWidth * 0.04; // 4% of width
     final buttonFontSize = screenWidth * 0.025; // 2.5% of width
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFF455567),
       body: SingleChildScrollView(
@@ -179,16 +173,12 @@ Future<void> _handleLogin() async {
                 top: logoTopPosition,
                 child: Column(
                   children: [
-                    Image.asset(
-                      'images/logo.png',
-                      width: 177,
-                      height: 271,
-                    ),
+                    Image.asset('images/logo.png', width: 177, height: 271),
                     SizedBox(height: screenHeight * 0.0), // 1% of screen height
                   ],
                 ),
               ),
-              
+
               // Login Container
               Positioned(
                 bottom: loginContainerBottomPosition,
@@ -219,7 +209,6 @@ Future<void> _handleLogin() async {
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.02), // 2% of height
-                      
                       // Phone TextField
                       Row(
                         children: [
@@ -243,7 +232,8 @@ Future<void> _handleLogin() async {
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.025, // 2.5% of width
+                                  horizontal:
+                                      screenWidth * 0.025, // 2.5% of width
                                   vertical: 0,
                                 ),
                                 border: OutlineInputBorder(
@@ -256,9 +246,8 @@ Future<void> _handleLogin() async {
                           ),
                         ],
                       ),
-                      
+
                       SizedBox(height: screenHeight * 0.015), // 1.5% of height
-                      
                       // Password TextField
                       Row(
                         children: [
@@ -292,8 +281,10 @@ Future<void> _handleLogin() async {
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                                    size: 16, 
+                                    _isPasswordVisible
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    size: 16,
                                     color: Colors.grey[600],
                                   ),
                                   onPressed: () {
@@ -308,9 +299,8 @@ Future<void> _handleLogin() async {
                           ),
                         ],
                       ),
-                      
+
                       SizedBox(height: screenHeight * 0.025), // 2.5% of height
-                      
                       // Buttons Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -321,7 +311,10 @@ Future<void> _handleLogin() async {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0F1A2B),
                               foregroundColor: Colors.white,
-                              minimumSize: Size(buttonWidth, screenHeight * 0.04), // 4% of height
+                              minimumSize: Size(
+                                buttonWidth,
+                                screenHeight * 0.04,
+                              ), // 4% of height
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -336,36 +329,43 @@ Future<void> _handleLogin() async {
                               ),
                             ),
                           ),
-                          
+
                           // Login Button
                           ElevatedButton(
-                            onPressed: isLoading ? null : _handleLogin,        // disable during loading
+                            onPressed:
+                                isLoading
+                                    ? null
+                                    : _handleLogin, // disable during loading
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0F1A2B),
                               foregroundColor: Colors.white,
-                              minimumSize: Size(buttonWidth, screenHeight * 0.04),
+                              minimumSize: Size(
+                                buttonWidth,
+                                screenHeight * 0.04,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                            child:
+                                isLoading
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                    : Text(
+                                      'Log in',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: buttonFontSize,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w400,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    'Log in',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: buttonFontSize,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
                           ),
                         ],
                       ),

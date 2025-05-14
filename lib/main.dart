@@ -4,7 +4,7 @@ import 'package:refillpro_owner_rider/views/auth/login.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Only set preferred orientations
   // REMOVE ALL STATUS BAR STYLING FROM HERE
   SystemChrome.setPreferredOrientations([

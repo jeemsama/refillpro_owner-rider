@@ -17,23 +17,23 @@ class CustomBottomNavBar extends StatefulWidget {
 class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   // List of icons for the navbar
   final List<IconData> navIcons = [
-    Icons.grid_view_rounded,   // Home/Dashboard icon
-    Icons.location_pin,        // Map/Navigation icon
-    Icons.shopping_cart,       // Cart/Shop icon
-    Icons.person_2,      // Profile icon
+    Icons.grid_view_rounded, // Home/Daschboard icon
+    Icons.location_pin, // Map/Navigation icon
+    Icons.shopping_cart, // Cart/Shop icon
+    Icons.person_2, // Profile icon
   ];
 
   @override
   Widget build(BuildContext context) {
     // Get device screen size for responsive design
     final Size screenSize = MediaQuery.of(context).size;
-    
+
     // Determine navbar width based on screen width
     final double navBarWidth = _getResponsiveWidth(screenSize.width);
-    
+
     // Determine navbar height based on screen height
     final double navBarHeight = _getResponsiveHeight(screenSize.height);
-    
+
     // Determine icon size based on screen size
     final double iconSize = _getResponsiveIconSize(screenSize);
 
@@ -50,7 +50,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
             blurRadius: 4,
             offset: Offset(0, 4),
             spreadRadius: 0,
-          )
+          ),
         ],
       ),
       child: Row(
@@ -65,7 +65,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
 
   Widget _buildNavItem(IconData icon, int index, double iconSize) {
     final bool isSelected = widget.selectedIndex == index;
-    
+
     return GestureDetector(
       onTap: () => widget.onItemTapped(index),
       child: Opacity(
@@ -134,10 +134,11 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   // Responsive icon size calculation
   double _getResponsiveIconSize(Size screenSize) {
     // Consider both width and height for the best proportion
-    final double smallerDimension = screenSize.width < screenSize.height 
-        ? screenSize.width 
-        : screenSize.height;
-    
+    final double smallerDimension =
+        screenSize.width < screenSize.height
+            ? screenSize.width
+            : screenSize.height;
+
     // For very small phones
     if (smallerDimension < 360) {
       return 20;
