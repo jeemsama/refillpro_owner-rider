@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
 
 class Profile extends StatefulWidget {
@@ -12,20 +13,34 @@ class Profile extends StatefulWidget {
   State<Profile> createState() => _ProfileState();
 }
 
-class _ProfileState extends State<Profile> {
-  // Store the previous status bar style to restore it later
+class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
+  // Animation controller for the settings drawer
+  late AnimationController _drawerController;
+  late Animation<Offset> _drawerAnimation;
+  bool _isDrawerOpen = false;
 
   @override
   void initState() {
     super.initState();
     
-    // Store the current style before changing it
-// Default fallback
-    
     // Set the Profile-specific style
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Color(0xFF1F2937),
       statusBarIconBrightness: Brightness.light,
+    ));
+
+    // Initialize drawer animation controller
+    _drawerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    
+    _drawerAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),  // Start from right side (off screen)
+      end: Offset.zero,               // End at visible position
+    ).animate(CurvedAnimation(
+      parent: _drawerController,
+      curve: Curves.easeInOut,
     ));
   }
 
@@ -36,7 +51,35 @@ class _ProfileState extends State<Profile> {
       statusBarColor: Colors.transparent, // Default transparent
       statusBarIconBrightness: Brightness.dark, // Default dark icons
     ));
+    _drawerController.dispose();
     super.dispose();
+  }
+
+  void _toggleDrawer() {
+    if (_isDrawerOpen) {
+      _drawerController.reverse();
+    } else {
+      _drawerController.forward();
+    }
+    setState(() {
+      _isDrawerOpen = !_isDrawerOpen;
+    });
+  }
+
+  void _handleRidersTap() {
+    // Handle Riders menu item tap
+    _toggleDrawer(); // Close drawer
+    // Navigate to Riders page
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const AddRider()));
+  }
+
+  void _handleLogoutTap() {
+    // Handle Log out menu item tap
+    _toggleDrawer(); // Close drawer
+    // Implement logout functionality
+    // Example: 
+    // AuthService.logout();
+    // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
   }
 
   @override
@@ -55,17 +98,157 @@ class _ProfileState extends State<Profile> {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const Home()),
-        	  );
+                );
             },
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings, color: Colors.white),
+              onPressed: _toggleDrawer, // Toggle the settings drawer
+            ),
+          ],
         ),
       ),
-      body: const ProfileContent(),
+      body: Stack(
+        children: [
+          // Main profile content
+          const ProfileContent(),
+          
+          // Overlay when drawer is open
+          if (_isDrawerOpen || _drawerController.status == AnimationStatus.forward || 
+              _drawerController.status == AnimationStatus.reverse)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _isDrawerOpen ? _toggleDrawer : null,
+                child: Container(
+                  color: _isDrawerOpen ? const Color.fromRGBO(0, 0, 0, 0.4) : Colors.transparent,
+                ),
+              ),
+            ),
+          
+          // Animated Settings Drawer
+          SlideTransition(
+            position: _drawerAnimation,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SettingsDrawer(
+                onRidersTap: _handleRidersTap,
+                onLogoutTap: _handleLogoutTap,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
+// Settings Drawer Widget
+class SettingsDrawer extends StatelessWidget {
+  final Function() onRidersTap;
+  final Function() onLogoutTap;
 
+  const SettingsDrawer({
+    super.key,
+    required this.onRidersTap,
+    required this.onLogoutTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 319,
+      height: MediaQuery.of(context).size.height,
+      color: const Color(0xFF1F2937),
+      child: Stack(
+        children: [
+          // Settings Title
+          Positioned(
+            left: 57.60,
+            top: 55,
+            child: SizedBox(
+              width: 189.04,
+              height: 36,
+              child: Text(
+                'Settings',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          
+          // Riders Button
+          Positioned(
+            left: 0,
+            top: 116,
+            right: 0,
+            child: InkWell(
+              onTap: onRidersTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Riders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Log out Button
+          Positioned(
+            left: 0,
+            top: 144,
+            right: 0,
+            child: InkWell(
+              onTap: onLogoutTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Log out',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Logo at bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 30,
+            child: Center(
+              child: Image.asset(
+                'images/logo1.png',
+                width: 35.27,
+                height: 42.50,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class ProfileContent extends StatefulWidget {
   const ProfileContent({super.key});
@@ -296,46 +479,46 @@ class _ProfileContentState extends State<ProfileContent> {
 
                   const SizedBox(height: 20),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile updated successfully!')),
-                        );
-                      },
-                      child: Container(
-                        width: w(96),
-                        height: h(36),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F2937),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x3F000000),
-                              blurRadius: 4,
-                              offset: Offset(0, 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+
+                      // Save button (original)
+                      InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Profile updated successfully!')),
+                          );
+                        },
+                        child: Container(
+                          width: w(96),
+                          height: h(36),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F2937),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x3F000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Save',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: fontSize(14),
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Save',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(14),
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
 
-                  const SizedBox(height: 50),
-
-                  AddRiderWidget(),
-
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -410,307 +593,6 @@ class _ProfileContentState extends State<ProfileContent> {
           IconButton(
             icon: Icon(isEditing ? Icons.check : Icons.edit, size: fontSize(18)),
             onPressed: isEditing ? onSave : onEdit,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-
-
-
-
-
-
-
-class AddRiderWidget extends StatefulWidget {
-  const AddRiderWidget({super.key});
-
-  @override
-  State<AddRiderWidget> createState() => _AddRiderWidgetState();
-}
-
-class _AddRiderWidgetState extends State<AddRiderWidget> {
-  // Text controllers for input fields
-  final TextEditingController nameController = TextEditingController(text: 'AquaLife');
-  final TextEditingController emailController = TextEditingController(text: 'sampleemail@gmail.com');
-  final TextEditingController contactNumberController = TextEditingController(text: '09275313243');
-  final TextEditingController passwordController = TextEditingController(text: '**************');
-
-  // Focus nodes for input fields
-  final FocusNode nameFocus = FocusNode();
-  final FocusNode emailFocus = FocusNode();
-  final FocusNode contactNumberFocus = FocusNode();
-  final FocusNode passwordFocus = FocusNode();
-  
-  bool obscurePassword = true;
-
-  @override
-  void dispose() {
-    // Dispose controllers when widget is removed
-    nameController.dispose();
-    emailController.dispose();
-    contactNumberController.dispose();
-    passwordController.dispose();
-    
-    // Dispose focus nodes
-    nameFocus.dispose();
-    emailFocus.dispose();
-    contactNumberFocus.dispose();
-    passwordFocus.dispose();
-    
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Responsive scaling
-    final screenSize = MediaQuery.of(context).size;
-    final screenWidth = screenSize.width;
-    final widthScaleFactor = screenWidth / 401;
-
-    double w(double value) => value * widthScaleFactor;
-    double h(double value) => value * widthScaleFactor;
-    double fontSize(double value) => value * widthScaleFactor;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(w(16)),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1EFEC),
-        borderRadius: BorderRadius.circular(w(15)),
-        // boxShadow: [
-        //   BoxShadow(
-        //     color: const Color.fromRGBO(0, 0, 0, 0.1),
-        //     blurRadius: w(4),
-        //     offset: Offset(0, h(2)),
-        //   ),
-        // ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title
-          Text(
-            'Add rider',
-            style: TextStyle(
-              color: const Color(0xFF1F2937),
-              fontSize: fontSize(24),
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: h(25)),
-          
-          // Form fields
-          _buildInputField(
-            label: 'name',
-            controller: nameController,
-            focusNode: nameFocus,
-            nextFocusNode: emailFocus,
-            w: w,
-            h: h,
-            fontSize: fontSize,
-          ),
-          SizedBox(height: h(15)),
-          
-          _buildInputField(
-            label: 'email',
-            controller: emailController,
-            focusNode: emailFocus,
-            nextFocusNode: contactNumberFocus,
-            keyboardType: TextInputType.emailAddress,
-            w: w,
-            h: h,
-            fontSize: fontSize,
-          ),
-          SizedBox(height: h(15)),
-          
-          _buildInputField(
-            label: 'Contact Number',
-            controller: contactNumberController,
-            focusNode: contactNumberFocus,
-            nextFocusNode: passwordFocus,
-            keyboardType: TextInputType.phone,
-            w: w,
-            h: h,
-            fontSize: fontSize,
-          ),
-          SizedBox(height: h(15)),
-          
-          _buildPasswordField(
-            label: 'password',
-            controller: passwordController,
-            focusNode: passwordFocus,
-            w: w,
-            h: h,
-            fontSize: fontSize,
-          ),
-          
-          SizedBox(height: h(20)),
-          
-          // Button
-          Align(
-            alignment: Alignment.centerRight,
-            child: InkWell(
-              onTap: () {
-                // Handle add rider functionality here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Rider added successfully!')),
-                );
-              },
-              child: Container(
-                width: w(96),
-                height: h(36),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
-                  borderRadius: BorderRadius.circular(w(10)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0x3F000000),
-                      blurRadius: w(4),
-                      offset: Offset(0, h(4)),
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    'Add',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: fontSize(15),
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    FocusNode? nextFocusNode,
-    TextInputType keyboardType = TextInputType.text,
-    required double Function(double) w,
-    required double Function(double) h,
-    required double Function(double) fontSize,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: w(16), vertical: h(10)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(w(10)),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: fontSize(12),
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-          TextField(
-            controller: controller,
-            focusNode: focusNode,
-            keyboardType: keyboardType,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: fontSize(16),
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: const InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(vertical: 1),
-              border: InputBorder.none,
-            ),
-            onSubmitted: (_) {
-              if (nextFocusNode != null) {
-                FocusScope.of(context).requestFocus(nextFocusNode);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required String label,
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required double Function(double) w,
-    required double Function(double) h,
-    required double Function(double) fontSize,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: w(16), vertical: h(10)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(w(10)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: fontSize(9),
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w300,
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  obscureText: obscurePassword,
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: fontSize(12),
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 4),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    obscurePassword = !obscurePassword;
-                  });
-                },
-                child: Icon(
-                  obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  size: fontSize(16),
-                  color: Colors.grey,
-                ),
-              ),
-            ],
           ),
         ],
       ),

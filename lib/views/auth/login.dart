@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/registration.dart';
-import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
 import 'package:http/http.dart' as http;
+// ignore: unused_import
+import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
+import 'package:refillpro_owner_rider/views/rider_screen/maps.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,7 +45,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  
+  bool isLoading = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
@@ -55,58 +58,55 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-void _handleLogin() async {
+Future<void> _handleLogin() async {
   final email = _emailController.text.trim();
-  final password = _passwordController.text;
-
+  final password = _passwordController.text.trim();
   if (email.isEmpty || password.isEmpty) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Please enter both email and password')),
     );
     return;
   }
 
-  final url = Uri.parse('http://192.168.1.23:8000/api/login'); // your API endpoint
+  setState(() => isLoading = true);
   try {
+    final url = Uri.parse('http://192.168.1.7:8000/api/login');
     final response = await http.post(
       url,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': email, 'password': password}),
-    );
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'email': email, 'password': password}),
+    ).timeout(const Duration(seconds: 10));
 
-    final data = json.decode(response.body);
+    // Will throw if the server returns HTML instead of JSON
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-    if (!mounted) return;
+    if (response.statusCode == 200 && data['token'] != null) {
+      final token  = data['token'] as String;
+      final role   = data['role']  as String? ?? '';
+      // final status = data['user']['status'] as String? ?? '';
 
-    if (response.statusCode == 200 && data['token'] != null && data['user'] != null) {
-      final token = data['token'] ?? '';
-      final user = data['user'] as Map<String, dynamic>;
-
-      final role = user['role']?.toString() ?? '';
-      final status = user['status']?.toString() ?? '';
-      final userId = user['id'] is int ? user['id'] : int.tryParse(user['id']?.toString() ?? '0') ?? 0;
-
-      if (status != 'approved') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account not approved yet')),
-        );
-        return;
-      }
+      // if (status != 'approved') {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('Account not approved yet')),
+      //   );
+      //   return;
+      // }
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
-      await prefs.setString('role', role);
-      await prefs.setInt('user_id', userId);
-
-      debugPrint('Token: $token');
-      debugPrint('Role: $role');
-      debugPrint('User ID: $userId');
+      await prefs.setString('auth_token', token);
 
       if (role == 'owner') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Home()),
+          MaterialPageRoute(builder: (_) => const Home()),
+        );
+      } else if (role == 'rider') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Maps()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,20 +114,24 @@ void _handleLogin() async {
         );
       }
     } else {
-      final errorMessage = data['message']?.toString() ?? 'Login failed';
+      final error = data['message']?.toString() ?? 'Login failed';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        SnackBar(content: Text(error)),
       );
     }
+  } on FormatException {
+    // Catches HTML or invalid JSON
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Server returned invalid data.')),
+    );
   } catch (e) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e')),
     );
+  } finally {
+    setState(() => isLoading = false);
   }
 }
-
-
 
 
 
@@ -176,7 +180,7 @@ void _handleLogin() async {
                 child: Column(
                   children: [
                     Image.asset(
-                      'images/logo1.png',
+                      'images/logo.png',
                       width: 177,
                       height: 271,
                     ),
@@ -335,24 +339,33 @@ void _handleLogin() async {
                           
                           // Login Button
                           ElevatedButton(
-                            onPressed: _handleLogin,
+                            onPressed: isLoading ? null : _handleLogin,        // disable during loading
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0F1A2B),
                               foregroundColor: Colors.white,
-                              minimumSize: Size(buttonWidth, screenHeight * 0.04), // 4% of height
+                              minimumSize: Size(buttonWidth, screenHeight * 0.04),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: Text(
-                              'Log in',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: buttonFontSize,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    'Log in',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: buttonFontSize,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/bottom_navbar.dart';
 import 'package:refillpro_owner_rider/views/header.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/maps.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/orders.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/profile.dart';
@@ -95,6 +96,71 @@ class _HomeState extends State<Home> {
 
 
 
+// Shop Status Button that toggles between open and closed
+class ShopStatusButton extends StatefulWidget {
+  const ShopStatusButton({super.key});
+
+  @override
+  State<ShopStatusButton> createState() => _ShopStatusButtonState();
+}
+
+class _ShopStatusButtonState extends State<ShopStatusButton> {
+  bool isShopOpen = true;
+
+  @override
+  Widget build(BuildContext context) {
+    // Get the scale factor for responsive sizing
+    final screenWidth = MediaQuery.of(context).size.width;
+    final widthScaleFactor = screenWidth / 401;
+    
+    // Helper functions for scaling
+    double w(double value) => value * widthScaleFactor;
+    double fontSize(double value) => value * widthScaleFactor;
+    
+    return ElevatedButton(
+      onPressed: () {
+        setState(() {
+          isShopOpen = !isShopOpen;
+        });
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isShopOpen ? const Color(0xFF5CB338) : Colors.red,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(
+          horizontal: w(10),
+          vertical: w(5),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        elevation: 4,
+        shadowColor: Color(0x3F000000),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            isShopOpen ? 'SHOP OPEN' : 'SHOP CLOSED',
+            style: TextStyle(
+              fontSize: fontSize(15),
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            isShopOpen ? 'Tap to close' : 'Tap to open',
+            style: TextStyle(
+              fontSize: fontSize(8),
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
@@ -126,189 +192,61 @@ class HomeContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting text
+              // Header with greeting and add rider button
               Padding(
                 padding: EdgeInsets.only(top: h(10)),
-                child: Text(
-                  'Hi, AquaLife',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: fontSize(20),
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              
-              SizedBox(height: h(15)),
-              
-              // Main blue card
-              Container(
-                width: screenWidth - w(40),
-                height: h(163),
-                decoration: ShapeDecoration(
-                  color: const Color(0xFF455567),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-                child: Stack(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Current month amount
-                    Positioned(
-                      left: w(28),
-                      top: h(17),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '₱0.0',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fontSize(24),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w800,
-                            ),
+                    Text(
+                      'Hi, AquaLife',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: fontSize(20),
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(0, 4),
+                            blurRadius: 4,
+                            color: Color.fromRGBO(0, 0, 0, 0.25),
                           ),
-                          SizedBox(height: h(1)),
+                        ],
+                      ),
+                    ),
+                    // Add rider button
+                    ElevatedButton(
+                      onPressed: () {
+                        // Add rider functionality
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AddRider()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5CB338),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: w(10),
+                          vertical: h(5),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        elevation: 4,
+                        shadowColor: Color(0x3F000000),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: fontSize(12)),
+                          SizedBox(width: w(4)),
                           Text(
-                            'May 2025',
+                            'Add rider',
                             style: TextStyle(
-                              color: Colors.white,
                               fontSize: fontSize(10),
                               fontFamily: 'Poppins',
                               fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Divider lines
-                    Positioned(
-                      left: w(120),
-                      top: h(102),
-                      child: Opacity(
-                        opacity: 0.50,
-                        child: Container(
-                          width: w(2),
-                          height: h(49),
-                          decoration: const BoxDecoration(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: w(250),
-                      top: h(102),
-                      child: Opacity(
-                        opacity: 0.50,
-                        child: Container(
-                          width: w(2),
-                          height: h(49),
-                          decoration: const BoxDecoration(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                    
-                    // April amount
-                    Positioned(
-                      left: w(22),
-                      top: h(117),
-                      child: Column(
-                        children: [
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              '₱10,000.00',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(14),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: h(2)),
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              'April 2025',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(6),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // March amount
-                    Positioned(
-                      left: w(152),
-                      top: h(117),
-                      child: Column(
-                        children: [
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              '₱10,000.00',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(14),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: h(2)),
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              'March 2025',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(6),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // February amount
-                    Positioned(
-                      left: w(273),
-                      top: h(117),
-                      child: Column(
-                        children: [
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              '₱10,000.00',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(14),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: h(2)),
-                          Opacity(
-                            opacity: 0.50,
-                            child: Text(
-                              'February 2025',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: fontSize(6),
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
                             ),
                           ),
                         ],
@@ -320,13 +258,203 @@ class HomeContent extends StatelessWidget {
               
               SizedBox(height: h(15)),
               
-              // Two cards in row
+              // Main blue card with shop status
+              Stack(
+                children: [
+                  // Main blue container
+                  Container(
+                    width: screenWidth - w(40),
+                    height: h(163),
+                    decoration: ShapeDecoration(
+                      color: const Color(0xFF455567),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        // Current month amount
+                        Positioned(
+                          left: w(28),
+                          top: h(17),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '₱0.0',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: fontSize(24),
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: h(1)),
+                              Text(
+                                'May 2025',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: fontSize(10),
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Divider lines
+                        Positioned(
+                          left: w(120),
+                          top: h(102),
+                          child: Opacity(
+                            opacity: 0.50,
+                            child: Container(
+                              width: w(2),
+                              height: h(49),
+                              decoration: const BoxDecoration(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: w(250),
+                          top: h(102),
+                          child: Opacity(
+                            opacity: 0.50,
+                            child: Container(
+                              width: w(2),
+                              height: h(49),
+                              decoration: const BoxDecoration(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        
+                        // April amount
+                        Positioned(
+                          left: w(22),
+                          top: h(117),
+                          child: Column(
+                            children: [
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  '₱10,000.00',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(14),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: h(2)),
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  'April 2025',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(6),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // March amount
+                        Positioned(
+                          left: w(152),
+                          top: h(117),
+                          child: Column(
+                            children: [
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  '₱10,000.00',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(14),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: h(2)),
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  'March 2025',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(6),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // February amount
+                        Positioned(
+                          left: w(273),
+                          top: h(117),
+                          child: Column(
+                            children: [
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  '₱10,000.00',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(14),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: h(2)),
+                              Opacity(
+                                opacity: 0.50,
+                                child: Text(
+                                  'February 2025',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(6),
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Shop open/close button - positioned at the top right of the card
+                  Positioned(
+                    right: w(8),
+                    top: h(8),
+                    child: ShopStatusButton(),
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: h(15)),
+              
+              // Three cards in row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Total Orders card
                   Container(
-                    width: (screenWidth - w(60)) / 2,
+                    width: (screenWidth - w(80)) / 3,
                     height: h(87),
                     decoration: ShapeDecoration(
                       color: const Color(0xFF1F2937),
@@ -338,16 +466,6 @@ class HomeContent extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Total Orders',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(10),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: h(10)),
-                        Text(
                           '112',
                           style: TextStyle(
                             color: Colors.white,
@@ -356,13 +474,23 @@ class HomeContent extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                        SizedBox(height: h(5)),
+                        Text(
+                          'Total Orders',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: fontSize(10),
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   
                   // Pending Orders card
                   Container(
-                    width: (screenWidth - w(60)) / 2,
+                    width: (screenWidth - w(80)) / 3,
                     height: h(87),
                     decoration: ShapeDecoration(
                       color: const Color(0xFF455567),
@@ -374,6 +502,16 @@ class HomeContent extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
+                          '5',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: fontSize(24),
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: h(5)),
+                        Text(
                           'Pending Orders',
                           style: TextStyle(
                             color: Colors.white,
@@ -382,14 +520,40 @@ class HomeContent extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        SizedBox(height: h(10)),
+                      ],
+                    ),
+                  ),
+                  
+                  // Riders card
+                  Container(
+                    width: (screenWidth - w(80)) / 3,
+                    height: h(87),
+                    decoration: ShapeDecoration(
+                      color: const Color(0xFF1F2937),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         Text(
-                          '5',
+                          '2',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: fontSize(24),
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: h(5)),
+                        Text(
+                          'Riders',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: fontSize(10),
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -399,9 +563,9 @@ class HomeContent extends StatelessWidget {
               ),
 
               // Below the Row of cards
-              SizedBox(height: h(0)),
+              SizedBox(height: h(15)),
 
-              // Your custom widget - EditDetailsWidget
+              // Your custom widget - EditDetailsWidget (if needed)
               CompactDeliveryDetailsWidget(),
             
               // Add some space at the bottom for the navbar
