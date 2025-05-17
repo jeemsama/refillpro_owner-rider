@@ -271,7 +271,7 @@ class _RegistrationState extends State<Registration> {
 
       // Prepare the API URL
       // If testing on an emulator, consider using 10.0.2.2 instead of the IP
-      final uri = Uri.parse('http://192.168.1.43:8000/api/v1/register-owner');
+      final uri = Uri.parse('http://192.168.1.7:8000/api/v1/register-owner');
       debugPrint('Sending request to: $uri');
 
       var request = http.MultipartRequest('POST', uri);

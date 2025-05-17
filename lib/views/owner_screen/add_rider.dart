@@ -363,8 +363,9 @@ class _AddRiderState extends State<AddRider> {
               border: InputBorder.none,
             ),
             onSubmitted: (_) {
-              if (nextFocusNode != null)
+              if (nextFocusNode != null) {
                 FocusScope.of(context).requestFocus(nextFocusNode);
+              }
             },
           ),
         ],

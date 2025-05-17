@@ -643,7 +643,7 @@ class _CompactDeliveryDetailsWidgetState
       }
 
       // Request shop details from backend
-      final url = Uri.parse('http://192.168.1.43:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.7:8000/api/owner/shop-details');
       final response = await http
           .get(
             url,
@@ -1043,7 +1043,7 @@ class _CompactDeliveryDetailsWidgetState
       debugPrint('Sending shop details: $payload');
 
       // Send to backend
-      final url = Uri.parse('http://192.168.1.43:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.7:8000/api/owner/shop-details');
       final response = await http
           .post(
             url,

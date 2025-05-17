@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => isLoading = true);
     try {
-      final url = Uri.parse('http://192.168.1.43:8000/api/login');
+      final url = Uri.parse('http://192.168.1.7:8000/api/login');
       final response = await http
           .post(
             url,
@@ -75,6 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
             body: jsonEncode({'email': email, 'password': password}),
           )
           .timeout(const Duration(seconds: 10));
+
+      // Debug prints to see raw response
+      debugPrint('Response status code: ${response.statusCode}');
+      debugPrint('Raw response body: ${response.body}');
 
       // Will throw if the server returns HTML instead of JSON
       final data = jsonDecode(response.body) as Map<String, dynamic>;
