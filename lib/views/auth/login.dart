@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/registration.dart';
-import 'package:http/http.dart' as http;
-// ignore: unused_import
-import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
-import 'package:refillpro_owner_rider/views/rider_screen/maps.dart';
+import 'package:http/http.dart' as http;
+import 'package:refillpro_owner_rider/views/rider_screen/rider_home.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,7 +12,6 @@ void main() {
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -33,7 +30,6 @@ class _MyAppState extends State<MyApp> {
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -48,184 +44,155 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both email and password')),
-      );
+Future<void> _handleLogin() async {
+  final email    = _emailController.text.trim();
+  final password = _passwordController.text.trim();
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter both email and password')),
+    );
+    return;
+  }
+
+  setState(() => isLoading = true);
+  try {
+    final url = Uri.parse('http://192.168.1.6:8000/api/login');
+    final r = await http
+      .post(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'email': email, 'password': password}),
+      )
+      .timeout(const Duration(seconds: 10));
+
+    debugPrint('Login ${r.statusCode} → ${r.body}');
+    final data = jsonDecode(r.body) as Map<String, dynamic>;
+
+    // top-level token, nested user object
+    final token = data['token'] as String?;
+    final user  = data['user']  as Map<String, dynamic>?;
+    final role  = user?['role'] as String?;
+
+    if (r.statusCode == 200 && token != null && user != null && role != null) {
+      // decide which ID to save:
+      //  - owner → save the owner's own id
+      //  - rider → save the *station owner's* id
+      final int? rawUserId = user['id'] as int?;
+      final int? stationOwnerId = (role == 'owner')
+        ? rawUserId
+        : (user['owner_id'] as int?);
+
+      if (stationOwnerId == null) {
+        throw 'Missing owner_id in login response';
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      await prefs.setInt   ('owner_id',   stationOwnerId);
+
+      if (role == 'owner') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Home()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RiderHome()),
+        );
+      }
       return;
     }
 
-    setState(() => isLoading = true);
-    try {
-      final url = Uri.parse('http://192.168.1.7:8000/api/login');
-      final response = await http
-          .post(
-            url,
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'email': email, 'password': password}),
-          )
-          .timeout(const Duration(seconds: 10));
+    final err = (data['message'] ?? data['error'] ?? 'Login failed').toString();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
 
-      // Debug prints to see raw response
-      debugPrint('Response status code: ${response.statusCode}');
-      debugPrint('Raw response body: ${response.body}');
-
-      // Will throw if the server returns HTML instead of JSON
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-      if (response.statusCode == 200 && data['token'] != null) {
-        final token = data['token'] as String;
-        final role = data['role'] as String? ?? '';
-        // final status = data['user']['status'] as String? ?? '';
-
-        // if (status != 'approved') {
-        //   ScaffoldMessenger.of(context).showSnackBar(
-        //     const SnackBar(content: Text('Account not approved yet')),
-        //   );
-        //   return;
-        // }
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);
-
-        if (role == 'owner') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const Home()),
-          );
-        } else if (role == 'rider') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const Maps()),
-          );
-        } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Unsupported role')));
-        }
-      } else {
-        final error = data['message']?.toString() ?? 'Login failed';
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
-      }
-    } on FormatException {
-      // Catches HTML or invalid JSON
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server returned invalid data.')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      setState(() => isLoading = false);
-    }
+  } on FormatException {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid response from server.')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  } finally {
+    setState(() => isLoading = false);
   }
+}
+
 
   void _handleRegister() {
-    // Implement registration navigation here
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const Registration()),
+      MaterialPageRoute(builder: (_) => const Registration()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions
     final screenSize = MediaQuery.of(context).size;
     final screenHeight = screenSize.height;
-    final screenWidth = screenSize.width;
-
-    // Calculate responsive sizes
-    final loginContainerWidth = screenWidth * 0.85; // 85% of screen width
-    final buttonWidth = loginContainerWidth * 0.3; // 30% of container width
-
-    // Calculate responsive positions
-    final logoTopPosition = screenHeight * 0.15; // 15% from top
-    final loginContainerBottomPosition = screenHeight * 0.2; // 20% from bottom
-
-    // Calculate responsive text sizes
-    final titleFontSize = screenWidth * 0.06; // 6% of width
-    final labelFontSize = screenWidth * 0.04; // 4% of width
-    final buttonFontSize = screenWidth * 0.025; // 2.5% of width
+    final screenWidth  = screenSize.width;
+    final containerWidth = screenWidth * 0.85;
+    final buttonWidth    = containerWidth * 0.3;
+    final logoTop        = screenHeight * 0.15;
+    final formBottom     = screenHeight * 0.20;
+    final titleFontSize  = screenWidth * 0.06;
+    final labelFontSize  = screenWidth * 0.04;
+    final buttonFontSize = screenWidth * 0.025;
 
     return Scaffold(
       backgroundColor: const Color(0xFF455567),
       body: SingleChildScrollView(
-        child: Container(
+        child: SizedBox(
           width: screenWidth,
           height: screenHeight,
-          clipBehavior: Clip.antiAlias,
-          decoration: const BoxDecoration(color: Color(0xFF455567)),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Logo
               Positioned(
-                top: logoTopPosition,
-                child: Column(
-                  children: [
-                    Image.asset('images/logo.png', width: 177, height: 271),
-                    SizedBox(height: screenHeight * 0.0), // 1% of screen height
-                  ],
-                ),
+                top: logoTop,
+                child: Image.asset('images/logo.png', width: 177, height: 271),
               ),
-
-              // Login Container
               Positioned(
-                bottom: loginContainerBottomPosition,
+                bottom: formBottom,
                 child: Container(
-                  width: loginContainerWidth,
-                  padding: EdgeInsets.all(screenWidth * 0.04), // 4% of width
+                  width: containerWidth,
+                  padding: EdgeInsets.all(screenWidth * 0.04),
                   decoration: ShapeDecoration(
                     color: const Color(0xFF455567),
                     shape: RoundedRectangleBorder(
-                      side: const BorderSide(
-                        width: 1,
-                        color: Color(0xFF1F2937),
-                      ),
+                      side: const BorderSide(width: 1, color: Color(0xFF1F2937)),
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Log in',
-                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: titleFontSize,
-                          fontFamily: 'Poppins-ExtraBold.ttf',
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      SizedBox(height: screenHeight * 0.02), // 2% of height
-                      // Phone TextField
+                      SizedBox(height: screenHeight * 0.02),
                       Row(
                         children: [
                           SizedBox(
-                            width: screenWidth * 0.2, // 20% of width
+                            width: screenWidth * 0.2,
                             child: Text(
                               'Email:',
                               style: TextStyle(
                                 color: const Color(0xFFE5E7EB),
                                 fontSize: labelFontSize,
-                                fontFamily: 'Roboto',
-                                fontWeight: FontWeight.w500,
-                                height: 1.25,
                               ),
                             ),
                           ),
@@ -235,14 +202,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      screenWidth * 0.025, // 2.5% of width
-                                  vertical: 0,
-                                ),
                                 border: OutlineInputBorder(
-                                  borderSide: BorderSide.none,
                                   borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
                               ),
                               style: TextStyle(fontSize: labelFontSize * 0.9),
@@ -250,9 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-
-                      SizedBox(height: screenHeight * 0.015), // 1.5% of height
-                      // Password TextField
+                      SizedBox(height: screenHeight * 0.015),
                       Row(
                         children: [
                           SizedBox(
@@ -262,9 +222,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color: const Color(0xFFE5E7EB),
                                 fontSize: labelFontSize,
-                                fontFamily: 'Roboto',
-                                fontWeight: FontWeight.w500,
-                                height: 1.25,
                               ),
                             ),
                           ),
@@ -275,21 +232,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.025,
-                                  vertical: 0,
-                                ),
                                 border: OutlineInputBorder(
-                                  borderSide: BorderSide.none,
                                   borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _isPasswordVisible
                                         ? Icons.visibility
                                         : Icons.visibility_off,
-                                    size: 16,
-                                    color: Colors.grey[600],
+                                    size: 18,
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -303,22 +255,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-
-                      SizedBox(height: screenHeight * 0.025), // 2.5% of height
-                      // Buttons Row
+                      SizedBox(height: screenHeight * 0.025),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Register Button
                           ElevatedButton(
                             onPressed: _handleRegister,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0F1A2B),
-                              foregroundColor: Colors.white,
-                              minimumSize: Size(
-                                buttonWidth,
-                                screenHeight * 0.04,
-                              ), // 4% of height
+                              minimumSize: Size(buttonWidth, screenHeight * 0.04),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -326,50 +271,33 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Text(
                               'Register',
                               style: TextStyle(
-                                color: Colors.white,
                                 fontSize: buttonFontSize,
-                                fontFamily: 'Poppins',
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
                           ),
-
-                          // Login Button
                           ElevatedButton(
-                            onPressed:
-                                isLoading
-                                    ? null
-                                    : _handleLogin, // disable during loading
+                            onPressed: isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0F1A2B),
-                              foregroundColor: Colors.white,
-                              minimumSize: Size(
-                                buttonWidth,
-                                screenHeight * 0.04,
-                              ),
+                              minimumSize: Size(buttonWidth, screenHeight * 0.04),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child:
-                                isLoading
-                                    ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                    : Text(
-                                      'Log in',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: buttonFontSize,
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
                                     ),
+                                  )
+                                : Text(
+                                    'Log in',
+                                    style: TextStyle(fontSize: buttonFontSize),
+                                  ),
                           ),
                         ],
                       ),

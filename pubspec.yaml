@@ -79,6 +79,7 @@ flutter:
     - images/regular.png
     - images/dispenser.png
     - images/small.png
+    - images/store_tag1.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

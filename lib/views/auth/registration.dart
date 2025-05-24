@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/approval_screen.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
@@ -35,23 +35,7 @@ class _RegistrationState extends State<Registration> {
   File? shopPhoto;
   final ImagePicker picker = ImagePicker();
 
-  // Map<String, bool> selectedGallons = {
-  //   'has_regular_gallon': false,
-  //   'has_dispenser_gallon': false,
-  //   'has_small_gallon': false,
-  // };
 
-  // final TextEditingController regularPriceController = TextEditingController(text: "₱30.00");
-  // final TextEditingController dispenserPriceController = TextEditingController(text: "₱30.00");
-  // final TextEditingController smallPriceController = TextEditingController(text: "₱25.00");
-
-  // Map<String, bool> morningSlots = {
-  //   "7am": false,
-  //   "8am": false,
-  //   "9am": false,
-  //   "10am": false,
-  //   "11am": false,
-  // };
 
   Map<String, bool> afternoonSlots = {
     "12pm": false,
@@ -118,9 +102,7 @@ class _RegistrationState extends State<Registration> {
     _passwordController.dispose();
     _shopNameController.dispose();
     _addressController.dispose();
-    // regularPriceController.dispose();
-    // dispenserPriceController.dispose();
-    // smallPriceController.dispose();
+
     super.dispose();
   }
 
@@ -206,20 +188,7 @@ class _RegistrationState extends State<Registration> {
       return false;
     }
 
-    // if (!selectedGallons.values.contains(true)) {
-    //   showErrorSnackBar('Please select at least one gallon type');
-    //   return false;
-    // }
 
-    // List<String> selectedSlots = [
-    //   ...morningSlots.entries.where((e) => e.value).map((e) => e.key),
-    //   ...afternoonSlots.entries.where((e) => e.value).map((e) => e.key),
-    // ];
-
-    // if (selectedSlots.isEmpty) {
-    //   showErrorSnackBar('Please select at least one delivery time slot');
-    //   return false;
-    // }
 
     if (!termsAgreed) {
       showErrorSnackBar('You must agree to the terms and conditions');
@@ -235,438 +204,173 @@ class _RegistrationState extends State<Registration> {
     );
   }
 
-  // This function properly formats and returns the selected time slots as an array
-  // List<String> getSelectedTimeSlots() {
-  //   List<String> selectedSlots = [];
 
-  // Add morning slots that are selected (true)
-  // morningSlots.forEach((time, isSelected) {
-  //   if (isSelected) {
-  //     selectedSlots.add(time);
-  //   }
-  // });
 
-  // Add afternoon slots that are selected (true)
-  //   afternoonSlots.forEach((time, isSelected) {
-  //     if (isSelected) {
-  //       selectedSlots.add(time);
-  //     }
-  //   });
+Future<void> submitOwnerRegistration() async {
+  try {
+    // 1️⃣ Show loading spinner
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF5F8B4C)),
+      ),
+    );
 
-  //   return selectedSlots;
-  // }
+    final uri = Uri.parse('http://192.168.1.6:8000/api/v1/register-owner');
+    debugPrint('Sending request to: $uri');
 
-  Future<void> submitOwnerRegistration() async {
-    try {
-      // Show loading indicator
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => const Center(
-              child: CircularProgressIndicator(color: Color(0xFF5F8B4C)),
-            ),
-      );
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Accept'] = 'application/json';
 
-      // Prepare the API URL
-      // If testing on an emulator, consider using 10.0.2.2 instead of the IP
-      final uri = Uri.parse('http://192.168.1.7:8000/api/v1/register-owner');
-      debugPrint('Sending request to: $uri');
+    void safePop() {
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
+    }
 
-      var request = http.MultipartRequest('POST', uri);
-
-      // Add required authentication headers if needed
-      // request.headers['Authorization'] = 'Bearer YOUR_TOKEN';
-      request.headers['Accept'] = 'application/json';
-
-      void safePop() {
-        if (mounted && Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
-      }
-
-      // Validate required fields
-      if (_nameController.text.isEmpty ||
-          _phoneController.text.isEmpty ||
-          _emailController.text.isEmpty ||
-          _passwordController.text.isEmpty ||
-          _shopNameController.text.isEmpty ||
-          _addressController.text.isEmpty) {
-        safePop(); // Dismiss loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill all required fields')),
-        );
-        return;
-      }
-
-      // Get selected time slots
-      // List<String> selectedSlots = getSelectedTimeSlots();
-
-      // Check if at least one gallon type is selected
-      // if (!selectedGallons.values.contains(true)) {
-      //   safePop(); // Dismiss loading indicator
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(content: Text('Please select at least one gallon type')),
-      //   );
-      //   return;
-      // }
-
-      // Format and add form fields
-      request.fields['name'] = _nameController.text.trim();
-      request.fields['phone'] = _phoneController.text.trim();
-      request.fields['email'] = _emailController.text.trim();
-      request.fields['password'] = _passwordController.text;
-      request.fields['shop_name'] = _shopNameController.text.trim();
-      request.fields['address'] = _addressController.text.trim();
-      request.fields['latitude'] = selectedLocation.latitude.toStringAsFixed(7);
-      request.fields['longitude'] = selectedLocation.longitude.toStringAsFixed(
-        7,
-      );
-      request.fields['agreed_to_terms'] = termsAgreed ? '1' : '0';
-
-      // // Utility to sanitize price input
-      // String sanitizePrice(String input) {
-      //   final numeric = RegExp(r'[\d.]+');
-      //   final match = numeric.allMatches(input.replaceAll(RegExp(r'[₱,\s]'), ''));
-      //   return match.isNotEmpty ? match.first.group(0) ?? '0' : '0';
-      // }
-
-      // // Utility to check if price is zero and show message
-      // bool isZeroPrice(String price, String label, BuildContext context) {
-      //   if (price == '0' || price == '0.0' || price == '0.00') {
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text('Please enter a valid price for $label')),
-      //     );
-      //     return true;
-      //   }
-      //   return false;
-      // }
-
-      // Process gallon types with proper price formatting
-      //   bool hasZeroPrice = false;
-
-      //   if (selectedGallons['has_regular_gallon'] == true) {
-      //     String price = sanitizePrice(regularPriceController.text);
-      //     if (isZeroPrice(price, "Regular Gallon", context)) hasZeroPrice = true;
-      //     request.fields['has_regular_gallon'] = '1';
-      //     request.fields['regular_gallon_price'] = price;
-      //     debugPrint('Regular price: $price');
-      //   } else {
-      //     request.fields['has_regular_gallon'] = '0';
-      //   }
-
-      //   if (selectedGallons['has_dispenser_gallon'] == true) {
-      //     String price = sanitizePrice(dispenserPriceController.text);
-      //     if (isZeroPrice(price, "Dispenser Gallon", context)) hasZeroPrice = true;
-      //     request.fields['has_dispenser_gallon'] = '1';
-      //     request.fields['dispenser_gallon_price'] = price;
-      //     debugPrint('Dispenser price: $price');
-      //   } else {
-      //     request.fields['has_dispenser_gallon'] = '0';
-      //   }
-
-      //   if (selectedGallons['has_small_gallon'] == true) {
-      //     String price = sanitizePrice(smallPriceController.text);
-      //     if (isZeroPrice(price, "Small Gallon", context)) hasZeroPrice = true;
-      //     request.fields['has_small_gallon'] = '1';
-      //     request.fields['small_gallon_price'] = price;
-      //     debugPrint('Small price: $price');
-      //   } else {
-      //     request.fields['has_small_gallon'] = '0';
-      //   }
-
-      //   // Stop request if any zero price was detected
-      //   if (hasZeroPrice) return;
-
-      //       // Check if at least one time slot is selected
-      //   if (selectedSlots.isEmpty) {
-      //     safePop(); // Dismiss loading indicator
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       const SnackBar(content: Text('Please select at least one delivery time slot')),
-      //     );
-      //     return;
-      //   }
-
-      // // Send as array items
-      // for (int i = 0; i < selectedSlots.length; i++) {
-      //   request.fields['delivery_time_slots[$i]'] = selectedSlots[i];
-      // }
-
-      //check for terms and coditions
-      if (!termsAgreed) {
-        safePop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You must agree to the terms and conditions.'),
-          ),
-        );
-        return;
-      }
-
-      // Add files if selected
-      if (dtiFile != null) {
-        debugPrint('Adding DTI file: ${dtiFile!.path}');
-        try {
-          request.files.add(
-            await http.MultipartFile.fromPath('dti_permit_path', dtiFile!.path),
-          );
-        } catch (e) {
-          debugPrint('Error adding DTI file: $e');
-          // Continue with submission even if file attachment fails
-        }
-      } else {
-        debugPrint('Warning: No DTI file selected');
-      }
-
-      if (permitFile != null) {
-        debugPrint('Adding permit file: ${permitFile!.path}');
-        try {
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'business_permit_path',
-              permitFile!.path,
-            ),
-          );
-        } catch (e) {
-          debugPrint('Error adding permit file: $e');
-          // Continue with submission even if file attachment fails
-        }
-      } else {
-        debugPrint('Warning: No permit file selected');
-      }
-
-      if (shopPhoto != null) {
-        debugPrint('Adding shop photo: ${shopPhoto!.path}');
-        try {
-          request.files.add(
-            await http.MultipartFile.fromPath('shop_photo', shopPhoto!.path),
-          );
-        } catch (e) {
-          debugPrint('Warning: No shop photo selected');
-        }
-      }
-
-      // Log the complete request for debugging
-      debugPrint('Request fields: ${request.fields}');
-
-      // Try multiple status codes for success
-      var response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-
-      safePop(); // Dismiss loading indicator
-
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: $responseBody');
-
-      // Parse response if it's JSON
-      Map<String, dynamic>? responseData;
-      try {
-        responseData = json.decode(responseBody);
-        debugPrint('Parsed response: $responseData');
-      } catch (e) {
-        debugPrint('Not a valid JSON response');
-      }
-
-      // Check for success - accept either 200 or 201
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('Registration successful');
-
-        if (!mounted) return;
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Awaiting approval.'),
-            backgroundColor: Color(0xFF5F8B4C),
-          ),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ApprovalScreen()),
-        );
-      } else {
-        // Handle specific error codes
-        String errorMessage = 'Registration failed';
-
-        if (responseData != null && responseData.containsKey('message')) {
-          errorMessage = '${responseData['message']}';
-        } else if (responseData != null && responseData.containsKey('error')) {
-          errorMessage = '${responseData['error']}';
-        } else if (response.statusCode == 422) {
-          errorMessage = 'Invalid or missing data. Please check all fields.';
-        } else if (response.statusCode == 401) {
-          errorMessage = 'Authentication error';
-        } else if (response.statusCode == 403) {
-          errorMessage = 'Permission denied';
-        } else if (response.statusCode == 404) {
-          errorMessage = 'API endpoint not found';
-        } else if (response.statusCode == 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-
-        debugPrint('Error: $errorMessage');
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Exception: $e');
-      debugPrint('StackTrace: $stackTrace');
-
-      if (!mounted) return;
-
-      // Dismiss loading indicator if it's showing
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
+    // 2️⃣ Basic form validation
+    if (_nameController.text.isEmpty ||
+        _phoneController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _shopNameController.text.isEmpty ||
+        _addressController.text.isEmpty) {
+      safePop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error: ${e.toString().substring(0, min(e.toString().length, 100))}',
-          ),
-          backgroundColor: Colors.red,
+        const SnackBar(content: Text('Please fill all required fields')),
+      );
+      return;
+    }
+
+    if (!termsAgreed) {
+      safePop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must agree to the terms and conditions.')),
+      );
+      return;
+    }
+
+    // 3️⃣ Attach text fields
+    request.fields
+      ..['name'] = _nameController.text.trim()
+      ..['phone'] = _phoneController.text.trim()
+      ..['email'] = _emailController.text.trim()
+      ..['password'] = _passwordController.text
+      ..['shop_name'] = _shopNameController.text.trim()
+      ..['address'] = _addressController.text.trim()
+      ..['latitude'] = selectedLocation.latitude.toStringAsFixed(7)
+      ..['longitude'] = selectedLocation.longitude.toStringAsFixed(7)
+      ..['agreed_to_terms'] = termsAgreed ? '1' : '0';
+
+    // 4️⃣ Attach files (if any)
+    if (dtiFile != null) {
+      try {
+        request.files.add(await http.MultipartFile.fromPath(
+          'dti_permit_path',
+          dtiFile!.path,
+        ));
+      } catch (_) { /* ignore */ }
+    }
+    if (permitFile != null) {
+      try {
+        request.files.add(await http.MultipartFile.fromPath(
+          'business_permit_path',
+          permitFile!.path,
+        ));
+      } catch (_) { /* ignore */ }
+    }
+    if (shopPhoto != null) {
+      try {
+        request.files.add(await http.MultipartFile.fromPath(
+          'shop_photo',
+          shopPhoto!.path,
+        ));
+      } catch (_) { /* ignore */ }
+    }
+
+    debugPrint('Request fields: ${request.fields}');
+
+    // 5️⃣ Send
+    final streamed = await request.send();
+    final responseBody = await streamed.stream.bytesToString();
+
+    safePop(); // hide spinner
+    debugPrint('Response ${streamed.statusCode}: $responseBody');
+
+    // 6️⃣ Try to decode JSON only if non-empty
+    Map<String, dynamic>? responseData;
+    if (responseBody.trim().isNotEmpty) {
+      try {
+        final decoded = json.decode(responseBody);
+        if (decoded is Map<String, dynamic>) {
+          responseData = decoded;
+          debugPrint('Decoded JSON: $responseData');
+        }
+      } catch (e) {
+        debugPrint('Invalid JSON: $e');
+      }
+    }
+
+    // 7️⃣ Success
+    if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+      debugPrint('Registration successful');
+
+      // extract the new owner/shop ID if available
+      int? ownerId;
+      if (responseData != null &&
+          responseData['data'] is Map<String, dynamic> &&
+          (responseData['data'] as Map<String, dynamic>)['id'] is int) {
+        ownerId = (responseData['data'] as Map<String, dynamic>)['id'] as int;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration submitted for approval!'),
+          backgroundColor: Color(0xFF5F8B4C),
         ),
       );
+
+      // ✨ Save only the ownerId
+      final prefs = await SharedPreferences.getInstance();
+      if (ownerId != null) {
+        await prefs.setInt('owner_id', ownerId);
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ApprovalScreen()),
+      );
+      return;
     }
+
+    // 8️⃣ Error path
+    String errorMessage = 'Registration failed';
+    if (responseData != null) {
+      errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
+    } else if (streamed.statusCode == 422) {
+      errorMessage = 'Invalid or missing data. Please check all fields.';
+    } else if (streamed.statusCode >= 500) {
+      errorMessage = 'Server error (${streamed.statusCode}), try again later.';
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+    );
+  } catch (e, st) {
+    debugPrint('Exception: $e\n$st');
+    if (!mounted) return;
+    if (Navigator.canPop(context)) Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Unexpected error: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
-  // // Helper method to build time slot checkbox
-  // Widget _buildTimeSlotCheckbox(String time, Map<String, bool> slots) {
-  //   return Row(
-  //     mainAxisSize: MainAxisSize.min,
-  //     children: [
-  //       SizedBox(
-  //         width: 24,
-  //         height: 24,
-  //         child: Checkbox(
-  //           value: slots[time],
-  //           onChanged: (value) {
-  //             setState(() {
-  //               slots[time] = value ?? false;
-  //             });
-  //           },
-  //           fillColor: WidgetStateProperty.resolveWith(
-  //             (states) => states.contains(WidgetState.selected)
-  //                 ? const Color(0xFF5F8B4C)
-  //                 : const Color(0xFFD9D9D9),
-  //           ),
-  //         ),
-  //       ),
-  //       const SizedBox(width: 4),
-  //       Text(
-  //         time,
-  //         style: const TextStyle(
-  //           color: Color(0xFFE5E7EB),
-  //           fontSize: 11,
-  //           fontFamily: 'Roboto',
-  //           fontWeight: FontWeight.w500,
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
-
-  // // Helper method to build gallon option with blue border for selected items
-  // Widget _buildGallonOption(
-  //   String label,
-  //   String imagePath,
-  //   TextEditingController controller,
-  //   String gallonType,
-  //   Size screenSize,
-  // ) {
-  //   final isSelected = selectedGallons[gallonType] ?? false;
-  //   final isSmallScreen = screenSize.width < 400;
-
-  //   return GestureDetector(
-  //     onTap: () {
-  //       setState(() {
-  //         // Toggle selection instead of replacing
-  //         selectedGallons[gallonType] = !(selectedGallons[gallonType] ?? false);
-  //       });
-  //     },
-  //     child: Container(
-  //       width: screenSize.width * 0.25,
-  //       height: screenSize.height * 0.15,
-  //       decoration: BoxDecoration(
-  //         color: const Color(0xFF1F2937), // Always dark background
-  //         borderRadius: BorderRadius.circular(15),
-  //         border: isSelected
-  //             ? Border.all(color: Colors.blue, width: 3.0) // Blue stroke for selected items
-  //             : null, // No border for unselected items
-  //       ),
-  //       child: Column(
-  //         mainAxisAlignment: MainAxisAlignment.center,
-  //         children: [
-  //           // Actual image container
-  //           Container(
-  //             width: screenSize.width * 0.15,
-  //             height: screenSize.height * 0.08,
-  //             decoration: BoxDecoration(
-  //               borderRadius: BorderRadius.circular(10),
-  //             ),
-  //             child: ClipRRect(
-  //               borderRadius: BorderRadius.circular(10),
-  //               child: Image.asset(
-  //                 imagePath,
-  //                 fit: BoxFit.contain,
-  //               ),
-  //             ),
-  //           ),
-  //           SizedBox(height: screenSize.height * 0.01),
-
-  //           // Price input field
-  //           Container(
-  //             width: screenSize.width * 0.15,
-  //             height: screenSize.height * 0.03,
-  //             decoration: BoxDecoration(
-  //               color: const Color(0xFFD9D9D9),
-  //               borderRadius: BorderRadius.circular(5),
-  //             ),
-  //             child: TextField(
-  //               controller: controller,
-  //               textAlign: TextAlign.center,
-  //               style: TextStyle(
-  //                 color: Colors.black,
-  //                 fontSize: isSmallScreen ? 8 : 10,
-  //                 fontFamily: 'Roboto',
-  //                 fontWeight: FontWeight.w500,
-  //               ),
-  //               decoration: InputDecoration(
-  //                 border: InputBorder.none,
-  //                 contentPadding: EdgeInsets.zero,
-  //                 hintText: 'your price',
-  //                 hintStyle: TextStyle(
-  //                   color: Colors.black54,
-  //                   fontSize: isSmallScreen ? 8 : 10,
-  //                 ),
-  //               ),
-  //             ),
-  //           ),
-  //           SizedBox(height: screenSize.height * 0.01),
-
-  //           // Label
-  //           Text(
-  //             label,
-  //             textAlign: TextAlign.center,
-  //             style: TextStyle(
-  //               color: const Color(0xFFE5E7EB),
-  //               fontSize: isSmallScreen ? 8 : 10,
-  //               fontFamily: 'Roboto',
-  //               fontWeight: FontWeight.w500,
-  //               height: 1.2,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -1263,156 +967,7 @@ class _RegistrationState extends State<Registration> {
 
                 SizedBox(height: 20 * heightScale),
 
-                // // Gallons and Delivery Section
-                // Container(
-                //   width: 362 * widthScale,
-                //   decoration: BoxDecoration(
-                //     color: const Color(0xFF455567),
-                //     borderRadius: BorderRadius.circular(16),
-                //     border: Border.all(
-                //       width: 1,
-                //       color: const Color(0xFF1F2937),
-                //     ),
-                //   ),
-                //   child: Padding(
-                //     padding: EdgeInsets.all(16 * widthScale),
-                //     child: Column(
-                //       children: [
-                //         // Title
-                //         Text(
-                //           'Gallons and Delivery',
-                //           textAlign: TextAlign.center,
-                //           style: TextStyle(
-                //             color: Colors.white,
-                //             fontSize: isSmallScreen ? 20 : 24,
-                //             fontFamily: 'Poppins',
-                //             fontWeight: FontWeight.w800,
-                //           ),
-                //         ),
-                //         SizedBox(height: 10 * heightScale),
 
-                //         // Instruction text
-                //         Text(
-                //           'Tap your available gallons and type your price.',
-                //           textAlign: TextAlign.center,
-                //           style: TextStyle(
-                //             color: const Color(0xFFE5E7EB),
-                //             fontSize: isSmallScreen ? 10 : 12,
-                //             fontFamily: 'Roboto',
-                //             fontWeight: FontWeight.w500,
-                //             height: 1.67,
-                //           ),
-                //         ),
-                //         SizedBox(height: 20 * heightScale),
-
-                //         // Gallon options row
-                //         Row(
-                //           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                //           children: [
-                //             // Regular Gallon
-                //             _buildGallonOption(
-                //               'Regular Gallon',
-                //               'images/regular.png',
-                //               regularPriceController,
-                //               'has_regular_gallon',
-                //               screenSize,
-                //             ),
-
-                //             // Dispenser Gallon
-                //             _buildGallonOption(
-                //               'Dispenser Gallon',
-                //               'images/dispenser.png',
-                //               dispenserPriceController,
-                //               'has_dispenser_gallon',
-                //               screenSize,
-                //             ),
-
-                //             // Small Gallon
-                //             _buildGallonOption(
-                //               'Small Gallon',
-                //               'images/small.png',
-                //               smallPriceController,
-                //               'has_small_gallon',
-                //               screenSize,
-                //             ),
-                //           ],
-                //         ),
-                //         SizedBox(height: 30 * heightScale),
-
-                //         // Delivery time slots instruction
-                //         Text(
-                //           'Select delivery time slots. This will appear in the customer.',
-                //           textAlign: TextAlign.center,
-                //           style: TextStyle(
-                //             color: const Color(0xFFE5E7EB),
-                //             fontSize: isSmallScreen ? 10 : 12,
-                //             fontFamily: 'Roboto',
-                //             fontWeight: FontWeight.w500,
-                //             height: 1.67,
-                //           ),
-                //         ),
-                //         SizedBox(height: 20 * heightScale),
-
-                //         // Morning time slots
-                //         Row(
-                //           children: [
-                //             SizedBox(
-                //               width: screenWidth * 0.1,
-                //               child: Text(
-                //                 'Morning:',
-                //                 style: TextStyle(
-                //                   color: const Color(0xFFE5E7EB),
-                //                   fontSize: isSmallScreen ? 14 : 10,
-                //                   fontFamily: 'Roboto',
-                //                   fontWeight: FontWeight.w500,
-                //                   height: 1.25,
-                //                 ),
-                //               ),
-                //             ),
-                //             Expanded(
-                //               child: Wrap(
-                //                 spacing: 8,
-                //                 runSpacing: 8,
-                //                 children: morningSlots.keys.map((time) {
-                //                   return _buildTimeSlotCheckbox(time, morningSlots);
-                //                 }).toList(),
-                //               ),
-                //             ),
-                //           ],
-                //         ),
-                //         SizedBox(height: 20 * heightScale),
-
-                //         // Afternoon time slots
-                //         Row(
-                //           children: [
-                //             SizedBox(
-                //               width: screenWidth * 0.1,
-                //               child: Text(
-                //                 'Afternoon:',
-                //                 style: TextStyle(
-                //                   color: const Color(0xFFE5E7EB),
-                //                   fontSize: isSmallScreen ? 14 : 9,
-                //                   fontFamily: 'Roboto',
-                //                   fontWeight: FontWeight.w500,
-                //                   height: 1.25,
-                //                 ),
-                //               ),
-                //             ),
-                //             Expanded(
-                //               child: Wrap(
-                //                 spacing: 8,
-                //                 runSpacing: 8,
-                //                 children: afternoonSlots.keys.map((time) {
-                //                   return _buildTimeSlotCheckbox(time, afternoonSlots);
-                //                 }).toList(),
-                //               ),
-                //             ),
-                //           ],
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ),
                 SizedBox(height: 20 * heightScale),
 
                 // Terms and Conditions Section
