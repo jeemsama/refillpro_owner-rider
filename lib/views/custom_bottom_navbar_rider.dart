@@ -44,7 +44,7 @@ class _CustomBottomNavBarRiderState extends State<CustomBottomNavBarRider> {
           ),
         ],
       ),
-      child: Row(
+      child: Row( 
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(
           navIcons.length,
