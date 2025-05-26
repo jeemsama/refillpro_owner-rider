@@ -24,11 +24,11 @@ class Station {
     required this.lng,
   });
   factory Station.fromJson(Map<String, dynamic> j) => Station(
-        id: j['id'] as int,
-        shopName: j['shop_name'] as String,
-        lat: double.parse(j['latitude'].toString()),
-        lng: double.parse(j['longitude'].toString()),
-      );
+    id: j['id'] as int,
+    shopName: j['shop_name'] as String,
+    lat: double.parse(j['latitude'].toString()),
+    lng: double.parse(j['longitude'].toString()),
+  );
 }
 
 class RiderHome extends StatefulWidget {
@@ -104,7 +104,10 @@ class _RiderHomeState extends State<RiderHome> {
         const Center(child: CircularProgressIndicator())
       else if (_error != null)
         Center(
-          child: Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+          child: Text(
+            'Error: $_error',
+            style: const TextStyle(color: Colors.red),
+          ),
         )
       else if (_station == null)
         const Center(child: Text('No station found'))
@@ -116,15 +119,23 @@ class _RiderHomeState extends State<RiderHome> {
             initialZoom: 15.0,
           ),
           children: [
-            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
-            MarkerLayer(markers: [
-              Marker(
-                point: LatLng(_station!.lat, _station!.lng),
-                width: 45,
-                height: 45,
-                child: Image.asset('images/store_tag1.png', width: 45, height: 45),
-              )
-            ]),
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: LatLng(_station!.lat, _station!.lng),
+                  width: 45,
+                  height: 45,
+                  child: Image.asset(
+                    'images/store_tag1.png',
+                    width: 45,
+                    height: 45,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
 

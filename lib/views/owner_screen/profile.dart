@@ -8,10 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:refillpro_owner_rider/views/auth/login.dart'; // ← import your login page
 
-
-
-const _apiBase = 'http://192.168.1.6:8000';  // ← your `php artisan serve` host:port
-
+const _apiBase =
+    'http://192.168.1.6:8000'; // ← your `php artisan serve` host:port
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -29,35 +27,38 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
+
     // Set the Profile-specific style
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Color(0xFF1F2937),
-      statusBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Color(0xFF1F2937),
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
 
     // Initialize drawer animation controller
     _drawerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _drawerAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0),  // Start from right side (off screen)
-      end: Offset.zero,               // End at visible position
-    ).animate(CurvedAnimation(
-      parent: _drawerController,
-      curve: Curves.easeInOut,
-    ));
+      begin: const Offset(1.0, 0.0), // Start from right side (off screen)
+      end: Offset.zero, // End at visible position
+    ).animate(
+      CurvedAnimation(parent: _drawerController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     // IMPORTANT: Reset to the default app style when leaving this screen
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // Default transparent
-      statusBarIconBrightness: Brightness.dark, // Default dark icons
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // Default transparent
+        statusBarIconBrightness: Brightness.dark, // Default dark icons
+      ),
+    );
     _drawerController.dispose();
     super.dispose();
   }
@@ -77,7 +78,10 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
     // Handle Riders menu item tap
     _toggleDrawer(); // Close drawer
     // Navigate to Riders page
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const AddRider()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddRider()),
+    );
   }
 
   void _handleLogoutTap() {
@@ -88,20 +92,21 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Logout'),
+            content: const Text('Are you sure you want to log out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Log out'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
     );
     if (shouldLogout ?? false) {
       final prefs = await SharedPreferences.getInstance();
@@ -128,10 +133,10 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Home()),
-                );
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const Home()),
+              );
             },
           ),
           actions: [
@@ -146,19 +151,23 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
         children: [
           // Main profile content
           ProfileContent(),
-          
+
           // Overlay when drawer is open
-          if (_isDrawerOpen || _drawerController.status == AnimationStatus.forward || 
+          if (_isDrawerOpen ||
+              _drawerController.status == AnimationStatus.forward ||
               _drawerController.status == AnimationStatus.reverse)
             Positioned.fill(
               child: GestureDetector(
                 onTap: _isDrawerOpen ? _toggleDrawer : null,
                 child: Container(
-                  color: _isDrawerOpen ? const Color.fromRGBO(0, 0, 0, 0.4) : Colors.transparent,
+                  color:
+                      _isDrawerOpen
+                          ? const Color.fromRGBO(0, 0, 0, 0.4)
+                          : Colors.transparent,
                 ),
               ),
             ),
-          
+
           // Animated Settings Drawer
           SlideTransition(
             position: _drawerAnimation,
@@ -214,7 +223,7 @@ class SettingsDrawer extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Riders Button
           Positioned(
             left: 0,
@@ -238,7 +247,7 @@ class SettingsDrawer extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Log out Button
           Positioned(
             left: 0,
@@ -262,7 +271,7 @@ class SettingsDrawer extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Logo at bottom
           Positioned(
             left: 0,
@@ -291,7 +300,7 @@ class ProfileContent extends StatefulWidget {
 }
 
 class _ProfileContentState extends State<ProfileContent> {
-   String shopName = '';
+  String shopName = '';
   String contactNumber = '';
 
   bool isEditingShopName = false;
@@ -319,80 +328,83 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 
   Future<void> _loadProfile() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    final uri = Uri.parse('$_apiBase/api/owner/profile');
-    final res = await http.get(uri, headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    });
-    // DEBUG only
-    if (kDebugMode) {
-      debugPrint('[_loadProfile] ${res.statusCode} → ${res.body}');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      final uri = Uri.parse('$_apiBase/api/owner/profile');
+      final res = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+      // DEBUG only
+      if (kDebugMode) {
+        debugPrint('[_loadProfile] ${res.statusCode} → ${res.body}');
+      }
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        setState(() {
+          shopName = body['shop_name'] ?? '';
+          contactNumber = body['contact_number'] ?? '';
+          shopNameController.text = shopName;
+          contactNumberController.text = contactNumber;
+          isLoading = false;
+        });
+      } else {
+        throw Exception('HTTP ${res.statusCode}');
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
     }
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      setState(() {
-        shopName = body['shop_name'] ?? '';
-        contactNumber = body['contact_number'] ?? '';
-        shopNameController.text = shopName;
-        contactNumberController.text = contactNumber;
-        isLoading = false;
-      });
-    } else {
-      throw Exception('HTTP ${res.statusCode}');
-    }
-  } catch (e) {
-    setState(() => isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error loading profile: $e')),
-    );
   }
-}
 
   Future<void> _saveProfile() async {
-  setState(() => isSaving = true);
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    final res = await http.patch(
-      Uri.parse('$_apiBase/api/owner/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'shop_name': shopNameController.text,
-        'contact_number': contactNumberController.text,
-      }),
-    );
-    if (res.statusCode == 200) {
-      // update local state
-      setState(() {
-        shopName = shopNameController.text;
-        contactNumber = contactNumberController.text;
-        isEditingShopName = false;
-        isEditingContactNumber = false;
-        isSaving = false;
-      });
-      // ← Persist the new shop name
-      await prefs.setString('shop_name', shopNameController.text);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
+    setState(() => isSaving = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      final res = await http.patch(
+        Uri.parse('$_apiBase/api/owner/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'shop_name': shopNameController.text,
+          'contact_number': contactNumberController.text,
+        }),
       );
-    } else {
-      throw Exception('Status ${res.statusCode}');
+      if (res.statusCode == 200) {
+        // update local state
+        setState(() {
+          shopName = shopNameController.text;
+          contactNumber = contactNumberController.text;
+          isEditingShopName = false;
+          isEditingContactNumber = false;
+          isSaving = false;
+        });
+        // ← Persist the new shop name
+        await prefs.setString('shop_name', shopNameController.text);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+      } else {
+        throw Exception('Status ${res.statusCode}');
+      }
+    } catch (e) {
+      setState(() => isSaving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
     }
-  } catch (e) {
-    setState(() => isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error saving profile: $e')),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -522,13 +534,13 @@ class _ProfileContentState extends State<ProfileContent> {
                     controller: contactNumberController,
                     fontSize: fontSize,
                     keyboardType: TextInputType.phone,
-                    onSave: () => setState(() => isEditingContactNumber = false),
+                    onSave:
+                        () => setState(() => isEditingContactNumber = false),
                     onEdit: () {
                       contactNumberController.text = contactNumber;
                       setState(() => isEditingContactNumber = true);
                     },
                   ),
-
 
                   const SizedBox(height: 20),
 
@@ -552,24 +564,26 @@ class _ProfileContentState extends State<ProfileContent> {
                             ],
                           ),
                           alignment: Alignment.center,
-                          child: isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation(Colors.white),
+                          child:
+                              isSaving
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : Text(
+                                    'Save',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: fontSize(14),
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  'Save',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(14),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                         ),
                       ),
                     ],
@@ -619,36 +633,44 @@ class _ProfileContentState extends State<ProfileContent> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(left: 12, bottom: 8, right: 12),
-                  child: isEditing
-                      ? TextField(
-                          controller: controller,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                  padding: const EdgeInsets.only(
+                    left: 12,
+                    bottom: 8,
+                    right: 12,
+                  ),
+                  child:
+                      isEditing
+                          ? TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            style: TextStyle(
+                              fontSize: fontSize(16),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            keyboardType: keyboardType,
+                            autofocus: true,
+                            onSubmitted: (_) => onSave(),
+                          )
+                          : Text(
+                            value,
+                            style: TextStyle(
+                              fontSize: fontSize(16),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          style: TextStyle(
-                            fontSize: fontSize(16),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          keyboardType: keyboardType,
-                          autofocus: true,
-                          onSubmitted: (_) => onSave(),
-                    )
-                      : Text(
-                          value,
-                          style: TextStyle(
-                            fontSize: fontSize(16),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(isEditing ? Icons.check : Icons.edit, size: fontSize(18)),
+            icon: Icon(
+              isEditing ? Icons.check : Icons.edit,
+              size: fontSize(18),
+            ),
             onPressed: isEditing ? onSave : onEdit,
           ),
         ],
