@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/home.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:refillpro_owner_rider/views/auth/login.dart'; // ← import your login page
+
+
+
+const _apiBase = 'http://192.168.1.6:8000';  // ← your `php artisan serve` host:port
+
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -74,12 +81,38 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
   }
 
   void _handleLogoutTap() {
-    // Handle Log out menu item tap
-    _toggleDrawer(); // Close drawer
-    // Implement logout functionality
-    // Example: 
-    // AuthService.logout();
-    // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+    _toggleDrawer();
+    _confirmLogout();
+  }
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (shouldLogout ?? false) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      await prefs.remove('shop_name');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const MyApp()),
+        (_) => false,
+      );
+    }
   }
 
   @override
@@ -112,7 +145,7 @@ class _ProfileState extends State<Profile> with SingleTickerProviderStateMixin {
       body: Stack(
         children: [
           // Main profile content
-          const ProfileContent(),
+          ProfileContent(),
           
           // Overlay when drawer is open
           if (_isDrawerOpen || _drawerController.status == AnimationStatus.forward || 
@@ -258,11 +291,14 @@ class ProfileContent extends StatefulWidget {
 }
 
 class _ProfileContentState extends State<ProfileContent> {
-  String shopName = 'AquaLife';
-  String contactNumber = '09275313243';
+   String shopName = '';
+  String contactNumber = '';
 
   bool isEditingShopName = false;
   bool isEditingContactNumber = false;
+
+  bool isLoading = true;
+  bool isSaving = false;
 
   late TextEditingController shopNameController;
   late TextEditingController contactNumberController;
@@ -270,8 +306,9 @@ class _ProfileContentState extends State<ProfileContent> {
   @override
   void initState() {
     super.initState();
-    shopNameController = TextEditingController(text: shopName);
-    contactNumberController = TextEditingController(text: contactNumber);
+    shopNameController = TextEditingController();
+    contactNumberController = TextEditingController();
+    _loadProfile();
   }
 
   @override
@@ -280,6 +317,82 @@ class _ProfileContentState extends State<ProfileContent> {
     contactNumberController.dispose();
     super.dispose();
   }
+
+  Future<void> _loadProfile() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final uri = Uri.parse('$_apiBase/api/owner/profile');
+    final res = await http.get(uri, headers: {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    });
+    // DEBUG only
+    if (kDebugMode) {
+      debugPrint('[_loadProfile] ${res.statusCode} → ${res.body}');
+    }
+    if (res.statusCode == 200) {
+      final body = jsonDecode(res.body);
+      setState(() {
+        shopName = body['shop_name'] ?? '';
+        contactNumber = body['contact_number'] ?? '';
+        shopNameController.text = shopName;
+        contactNumberController.text = contactNumber;
+        isLoading = false;
+      });
+    } else {
+      throw Exception('HTTP ${res.statusCode}');
+    }
+  } catch (e) {
+    setState(() => isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error loading profile: $e')),
+    );
+  }
+}
+
+  Future<void> _saveProfile() async {
+  setState(() => isSaving = true);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final res = await http.patch(
+      Uri.parse('$_apiBase/api/owner/profile'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'shop_name': shopNameController.text,
+        'contact_number': contactNumberController.text,
+      }),
+    );
+    if (res.statusCode == 200) {
+      // update local state
+      setState(() {
+        shopName = shopNameController.text;
+        contactNumber = contactNumberController.text;
+        isEditingShopName = false;
+        isEditingContactNumber = false;
+        isSaving = false;
+      });
+      // ← Persist the new shop name
+      await prefs.setString('shop_name', shopNameController.text);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
+    } else {
+      throw Exception('Status ${res.statusCode}');
+    }
+  } catch (e) {
+    setState(() => isSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error saving profile: $e')),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -291,6 +404,10 @@ class _ProfileContentState extends State<ProfileContent> {
     double w(double value) => value * widthScaleFactor;
     double h(double value) => value * widthScaleFactor;
     double fontSize(double value) => value * widthScaleFactor;
+
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EFEC),
@@ -390,17 +507,10 @@ class _ProfileContentState extends State<ProfileContent> {
                     isEditing: isEditingShopName,
                     controller: shopNameController,
                     fontSize: fontSize,
-                    onSave: () {
-                      setState(() {
-                        shopName = shopNameController.text;
-                        isEditingShopName = false;
-                      });
-                    },
+                    onSave: () => setState(() => isEditingShopName = false),
                     onEdit: () {
-                      setState(() {
-                        shopNameController.text = shopName;
-                        isEditingShopName = true;
-                      });
+                      shopNameController.text = shopName;
+                      setState(() => isEditingShopName = true);
                     },
                   ),
 
@@ -411,88 +521,25 @@ class _ProfileContentState extends State<ProfileContent> {
                     isEditing: isEditingContactNumber,
                     controller: contactNumberController,
                     fontSize: fontSize,
-                    onSave: () {
-                      setState(() {
-                        contactNumber = contactNumberController.text;
-                        isEditingContactNumber = false;
-                      });
-                    },
-                    onEdit: () {
-                      setState(() {
-                        contactNumberController.text = contactNumber;
-                        isEditingContactNumber = true;
-                      });
-                    },
                     keyboardType: TextInputType.phone,
+                    onSave: () => setState(() => isEditingContactNumber = false),
+                    onEdit: () {
+                      contactNumberController.text = contactNumber;
+                      setState(() => isEditingContactNumber = true);
+                    },
                   ),
 
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Pin your shop location',
-                        style: TextStyle(
-                          fontSize: fontSize(14),
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Map
-                  Container(
-                    width: double.infinity,
-                    height: h(180),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1F2937),
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(17.6132, 121.7270),
-                        initialZoom: 18.0,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          subdomains: const ['a', 'b', 'c'],
-                          userAgentPackageName: 'com.example.app',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: LatLng(17.6132, 121.7270),
-                              width: 40,
-                              height: 40,
-                              child: const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 40,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
 
                   const SizedBox(height: 20),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-
-                      // Save button (original)
                       InkWell(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Profile updated successfully!')),
-                          );
-                        },
+                        onTap: isSaving ? null : _saveProfile,
                         child: Container(
                           width: w(96),
-                          height: h(36),
+                          height: w(36),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1F2937),
                             borderRadius: BorderRadius.circular(10),
@@ -505,14 +552,24 @@ class _ProfileContentState extends State<ProfileContent> {
                             ],
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            'Save',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fontSize(14),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        AlwaysStoppedAnimation(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  'Save',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: fontSize(14),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                     ],

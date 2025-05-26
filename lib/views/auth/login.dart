@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:refillpro_owner_rider/views/rider_screen/rider_home.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'forgot_password.dart';
+import 'package:flutter/foundation.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -95,6 +98,11 @@ Future<void> _handleLogin() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
       await prefs.setInt   ('owner_id',   stationOwnerId);
+      await prefs.setString('role', role);   // <— store “owner” or “rider”
+
+
+            if (kDebugMode) debugPrint('Saved customer_token: $token');
+
 
       if (role == 'owner') {
         Navigator.pushReplacement(
@@ -127,6 +135,7 @@ Future<void> _handleLogin() async {
 }
 
 
+
   void _handleRegister() {
     Navigator.push(
       context,
@@ -153,13 +162,20 @@ Future<void> _handleLogin() async {
         child: SizedBox(
           width: screenWidth,
           height: screenHeight,
+          // decoration: const BoxDecoration(color: Color(0xFF455567)),
           child: Stack(
             alignment: Alignment.center,
             children: [
               Positioned(
                 top: logoTop,
-                child: Image.asset('images/logo.png', width: 177, height: 271),
+                child: Column(
+                  children: [
+                    Image.asset('images/logo.png', width: 177, height: 271),
+                  ],
+                ),
               ),
+
+              // Login Container
               Positioned(
                 bottom: formBottom,
                 child: Container(
@@ -184,6 +200,8 @@ Future<void> _handleLogin() async {
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.02),
+
+                      // Email Field
                       Row(
                         children: [
                           SizedBox(
@@ -193,6 +211,7 @@ Future<void> _handleLogin() async {
                               style: TextStyle(
                                 color: const Color(0xFFE5E7EB),
                                 fontSize: labelFontSize,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -202,6 +221,9 @@ Future<void> _handleLogin() async {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.025,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide.none,
@@ -212,7 +234,10 @@ Future<void> _handleLogin() async {
                           ),
                         ],
                       ),
+
                       SizedBox(height: screenHeight * 0.015),
+
+                      // Password Field
                       Row(
                         children: [
                           SizedBox(
@@ -222,6 +247,7 @@ Future<void> _handleLogin() async {
                               style: TextStyle(
                                 color: const Color(0xFFE5E7EB),
                                 fontSize: labelFontSize,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -232,6 +258,9 @@ Future<void> _handleLogin() async {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: screenWidth * 0.025,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide.none,
@@ -255,7 +284,10 @@ Future<void> _handleLogin() async {
                           ),
                         ],
                       ),
+
                       SizedBox(height: screenHeight * 0.025),
+
+                      // Buttons Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -273,6 +305,7 @@ Future<void> _handleLogin() async {
                               style: TextStyle(
                                 fontSize: buttonFontSize,
                                 fontWeight: FontWeight.w400,
+                                color: const Color(0xFFE5E7EB),
                               ),
                             ),
                           ),
@@ -296,11 +329,39 @@ Future<void> _handleLogin() async {
                                   )
                                 : Text(
                                     'Log in',
-                                    style: TextStyle(fontSize: buttonFontSize),
+                                    style: TextStyle(
+                                      fontSize: buttonFontSize,
+                                      fontWeight: FontWeight.w400,
+                                      color: const Color(0xFFE5E7EB),
+                                    ),
                                   ),
                           ),
                         ],
                       ),
+
+                      // ← NEW: Forgot Password link
+                      SizedBox(height: screenHeight * 0.015), // spacing
+                      TextButton(
+                        onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+    );
+  },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: labelFontSize * 0.9,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                      // ← END NEW
                     ],
                   ),
                 ),
