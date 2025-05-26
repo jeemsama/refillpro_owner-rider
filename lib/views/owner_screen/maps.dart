@@ -34,28 +34,40 @@ class _MapsState extends State<Maps> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffF1EFEC),
-      body: Stack(children: [
-        const Positioned(top: 50, left: 0, right: 0, child: AppHeader()),
-        Positioned(
-          top: 83, left: 0, right: 0, bottom: 0,
-          child: SafeArea(
-            top: false,
-            child: Stack(children: [
-              Positioned(
-                top: 20, left: 0, right: 0, bottom: 97,
-                child: _screens[_selectedIndex],
+      body: Stack(
+        children: [
+          const Positioned(top: 50, left: 0, right: 0, child: AppHeader()),
+          Positioned(
+            top: 83,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    bottom: 97,
+                    child: _screens[_selectedIndex],
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 30,
+                    child: CustomBottomNavBar(
+                      selectedIndex: _selectedIndex,
+                      onItemTapped: _onItemTapped,
+                    ),
+                  ),
+                ],
               ),
-              Positioned(
-                left: 0, right: 0, bottom: 30,
-                child: CustomBottomNavBar(
-                  selectedIndex: _selectedIndex,
-                  onItemTapped: _onItemTapped,
-                ),
-              ),
-            ]),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -105,7 +117,10 @@ class _MapsContentState extends State<MapsContent> {
   }
 
   Future<void> _loadMyShop() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final prefs = await SharedPreferences.getInstance();
       final myOwnerId = prefs.getInt('owner_id');
@@ -114,19 +129,18 @@ class _MapsContentState extends State<MapsContent> {
       }
 
       final uri = Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations');
-      final resp = await http.get(uri, headers: {
-        'Accept': 'application/json',
-      });
+      final resp = await http.get(uri, headers: {'Accept': 'application/json'});
 
       if (resp.statusCode != 200) {
         throw 'Failed to load stations (status ${resp.statusCode})';
       }
 
       final List jsonList = json.decode(resp.body) as List;
-      final matches = jsonList
-          .map((e) => ShopDetail.fromJson(e as Map<String, dynamic>))
-          .where((s) => s.ownerId == myOwnerId)
-          .toList();
+      final matches =
+          jsonList
+              .map((e) => ShopDetail.fromJson(e as Map<String, dynamic>))
+              .where((s) => s.ownerId == myOwnerId)
+              .toList();
 
       if (matches.isEmpty) {
         throw 'No approved station found for owner_id=$myOwnerId';
@@ -138,7 +152,9 @@ class _MapsContentState extends State<MapsContent> {
         _mapController.move(LatLng(_mine!.lat, _mine!.lng), 15.0);
       });
 
-      setState(() { _loading = false; });
+      setState(() {
+        _loading = false;
+      });
     } catch (e) {
       setState(() {
         _loading = false;
@@ -181,9 +197,7 @@ class _MapsContentState extends State<MapsContent> {
               point: LatLng(_mine!.lat, _mine!.lng),
               width: 50,
               height: 50,
-              child: Image.asset(
-                'images/store_tag1.png',
-              ),
+              child: Image.asset('images/store_tag1.png'),
             ),
           ],
         ),
