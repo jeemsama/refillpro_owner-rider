@@ -26,59 +26,66 @@ class _RiderProfileState extends State<RiderProfile> {
   void initState() {
     super.initState();
     // match owner styling for status bar
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Color(0xFF1F2937),
-      statusBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Color(0xFF1F2937),
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
     _loadProfile();
   }
 
   Future<void> _loadProfile() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    debugPrint('Using token: $token'); // optional, for sanity
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      debugPrint('Using token: $token'); // optional, for sanity
 
-    final res = await http.get(
-      Uri.parse('$_apiBase/api/rider/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
-    debugPrint('→ status ${res.statusCode}, body: ${res.body}');
+      final res = await http.get(
+        Uri.parse('$_apiBase/api/rider/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+      debugPrint('→ status ${res.statusCode}, body: ${res.body}');
 
-
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
-      setState(() {
-        riderName     = body['name']  ?? '';
-        contactNumber = body['phone'] ?? '';
-        isLoading     = false;
-      });
-    } else {
-      throw Exception('HTTP ${res.statusCode}');
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        setState(() {
+          riderName = body['name'] ?? '';
+          contactNumber = body['phone'] ?? '';
+          isLoading = false;
+        });
+      } else {
+        throw Exception('HTTP ${res.statusCode}');
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
     }
-  } catch (e) {
-    setState(() => isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error loading profile: $e')),
-    );
   }
-}
-
 
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Log out')),
-        ],
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Logout'),
+            content: const Text('Are you sure you want to log out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Log out'),
+              ),
+            ],
+          ),
     );
     if (shouldLogout ?? false) {
       final prefs = await SharedPreferences.getInstance();
@@ -108,13 +115,13 @@ class _RiderProfileState extends State<RiderProfile> {
         centerTitle: true,
         title: const Text('Profile', style: TextStyle(color: Colors.white)),
         leading: IconButton(
-  icon: const Icon(Icons.arrow_back, color: Colors.white),
-  onPressed: () => Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (_) => const RiderHome()),
-  ),
-),
-
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed:
+              () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const RiderHome()),
+              ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -133,18 +140,27 @@ class _RiderProfileState extends State<RiderProfile> {
               child: Column(
                 children: [
                   Container(
-                    width: 100, height: 100,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       color: const Color(0xFFD9D9D9),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(Icons.person, size: 60, color: Color(0xFF1F2937)),
+                    child: const Icon(
+                      Icons.person,
+                      size: 60,
+                      color: Color(0xFF1F2937),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     riderName,
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -158,16 +174,31 @@ class _RiderProfileState extends State<RiderProfile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Contact Number', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  const Text(
+                    'Contact Number',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [
-                        BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 4, offset: const Offset(0, 2)),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(5),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
                     ),
-                    child: Text(contactNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                    child: Text(
+                      contactNumber,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 40),
@@ -177,10 +208,19 @@ class _RiderProfileState extends State<RiderProfile> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1F2937),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: _confirmLogout,
-                    child: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 255, 255, 255))),
+                    child: const Text(
+                      'Log Out',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 255, 255, 255),
+                      ),
+                    ),
                   ),
                 ],
               ),

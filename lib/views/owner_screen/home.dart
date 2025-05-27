@@ -156,11 +156,16 @@ Future<String> _fetchShopName() async {
   final token = prefs.getString('auth_token') ?? '';
 
   final res = await http.get(
+// <<<<<<< profilepic
     Uri.parse('http://192.168.1.18:8000/api/owner/profile'),
     headers: {
       'Authorization': 'Bearer $token',
       'Accept': 'application/json',
     },
+// =======
+    Uri.parse('http://192.168.1.6:8000/api/owner/profile'),
+    headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+// >>>>>>> main
   );
   if (res.statusCode == 200) {
     final body = jsonDecode(res.body);
@@ -169,7 +174,6 @@ Future<String> _fetchShopName() async {
     throw Exception('Failed to load shop name');
   }
 }
-
 
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
@@ -211,65 +215,65 @@ class HomeContent extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     FutureBuilder<String>(
-  future: _fetchShopName(),
-  builder: (context, snapshot) {
-    final name = snapshot.data;
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return Text(
-        'Hi, …',
-        style: TextStyle(
-                        color: Colors.black,
-                        fontSize: fontSize(20),
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(0, 4),
-                            blurRadius: 4,
-                            color: Color.fromRGBO(0, 0, 0, 0.25),
-                          ),
-                        ],
-                      ),
-      );
-    } else if (snapshot.hasError) {
-      return Text(
-        'Hi, owner',
-        style: TextStyle(
-                        color: Colors.black,
-                        fontSize: fontSize(20),
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(0, 4),
-                            blurRadius: 4,
-                            color: Color.fromRGBO(0, 0, 0, 0.25),
-                          ),
-                        ],
-                      ),
-      );
-    } else {
-      return Text(
-        'Hi, $name',
-        style: TextStyle(
-                        color: Colors.black,
-                        fontSize: fontSize(20),
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(0, 4),
-                            blurRadius: 4,
-                            color: Color.fromRGBO(0, 0, 0, 0.25),
-                          ),
-                        ],
-                      ),
-      );
-    }
-  },
-),
+                      future: _fetchShopName(),
+                      builder: (context, snapshot) {
+                        final name = snapshot.data;
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Text(
+                            'Hi, …',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: fontSize(20),
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 4),
+                                  blurRadius: 4,
+                                  color: Color.fromRGBO(0, 0, 0, 0.25),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else if (snapshot.hasError) {
+                          return Text(
+                            'Hi, owner',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: fontSize(20),
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 4),
+                                  blurRadius: 4,
+                                  color: Color.fromRGBO(0, 0, 0, 0.25),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else {
+                          return Text(
+                            'Hi, $name',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: fontSize(20),
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 4),
+                                  blurRadius: 4,
+                                  color: Color.fromRGBO(0, 0, 0, 0.25),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                    ),
 
-                    
                     // Add rider button
                     ElevatedButton(
                       onPressed: () {

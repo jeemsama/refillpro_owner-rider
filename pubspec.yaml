@@ -37,6 +37,7 @@ dependencies:
   flutter_map: ^8.1.1
   latlong2: ^0.9.1
   geolocator: ^14.0.0
+  geocoding: ^3.0.0
   convert: ^3.1.2
   http: ^1.3.0
   dio: ^5.8.0+1
@@ -78,6 +79,7 @@ flutter:
     - images/dispenser.png
     - images/small.png
     - images/store_tag1.png
+    - images/customer_tag1.png
     - assets/icon/logo.png
   #   - images/a_dot_ham.jpeg
 

@@ -22,54 +22,52 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _sendResetLink() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    final resp = await http.post(
-      Uri.parse('$_apiBase/password/forgot'),
-      headers: {'Accept': 'application/json'},
-      body: {'email': _emailController.text.trim()},
-    );
-
-    final body = jsonDecode(resp.body);
-
-    if (resp.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(body['message'] ?? 'Reset link sent!')),
+    try {
+      final resp = await http.post(
+        Uri.parse('$_apiBase/password/forgot'),
+        headers: {'Accept': 'application/json'},
+        body: {'email': _emailController.text.trim()},
       );
-    } else if (resp.statusCode == 422) {
-      // Laravel validation errors
-      final errors = body['errors'] as Map<String, dynamic>?;
-      final emailErr = errors?['email'] as List<dynamic>?;
-      final msg = emailErr != null && emailErr.isNotEmpty
-          ? emailErr.first
-          : 'Invalid input.';
+
+      final body = jsonDecode(resp.body);
+
+      if (resp.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Reset link sent!')),
+        );
+      } else if (resp.statusCode == 422) {
+        // Laravel validation errors
+        final errors = body['errors'] as Map<String, dynamic>?;
+        final emailErr = errors?['email'] as List<dynamic>?;
+        final msg =
+            emailErr != null && emailErr.isNotEmpty
+                ? emailErr.first
+                : 'Invalid input.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(body['message'] ?? 'Failed to send link')),
+        );
+      }
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg)),
+        const SnackBar(content: Text('Network error, please try again')),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(body['message'] ?? 'Failed to send link')),
-      );
+    } finally {
+      setState(() => _isLoading = false);
     }
-  } catch (_) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Network error, please try again')),
-    );
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forgot Password'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Forgot Password'), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
@@ -111,16 +109,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text(
-                      'Send Reset Link',
-                      style: TextStyle(fontSize: 16),
-                    ),
+              child:
+                  _isLoading
+                      ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Text(
+                        'Send Reset Link',
+                        style: TextStyle(fontSize: 16),
+                      ),
             ),
           ],
         ),

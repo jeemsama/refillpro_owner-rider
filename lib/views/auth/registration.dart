@@ -1,4 +1,4 @@
-
+import 'package:geocoding/geocoding.dart';
 import 'package:flutter/material.dart';
 import 'package:refillpro_owner_rider/views/auth/approval_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -20,7 +20,10 @@ class Registration extends StatefulWidget {
 }
 
 class _RegistrationState extends State<Registration> {
-  LatLng selectedLocation = LatLng(17.6131, 121.7269); // Default Tuguegarao
+  LatLng selectedLocation = LatLng(17.6502, 121.7334); // Default Tuguegarao
+  final LatLng allowedCenter = LatLng(17.6607, 121.7525); // Approx: Carig Sur
+  final double allowedRadiusKm = 1.0;
+  final Distance _distance = const Distance();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -29,13 +32,15 @@ class _RegistrationState extends State<Registration> {
   final TextEditingController _shopNameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
+  bool isWithinRadius(LatLng center, LatLng point, double radiusKm) {
+    return _distance.as(LengthUnit.Kilometer, center, point) <= radiusKm;
+  }
+
   File? dtiFile;
   File? permitFile;
 
   File? shopPhoto;
   final ImagePicker picker = ImagePicker();
-
-
 
   Map<String, bool> afternoonSlots = {
     "12pm": false,
@@ -53,6 +58,42 @@ class _RegistrationState extends State<Registration> {
   void initState() {
     super.initState();
     _determinePosition();
+  }
+
+  Future<void> reverseGeocode(LatLng latLng) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latLng.latitude,
+        latLng.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final fullAddress =
+            "${place.name}, ${place.street}, ${place.locality}, ${place.administrativeArea}";
+        setState(() {
+          _addressController.text = fullAddress;
+        });
+      }
+    } catch (e) {
+      debugPrint("Reverse geocoding failed: $e");
+    }
+  }
+
+  Future<void> forwardGeocode(String address) async {
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      if (locations.isNotEmpty) {
+        final loc = locations.first;
+        LatLng newLocation = LatLng(loc.latitude, loc.longitude);
+        setState(() {
+          selectedLocation = newLocation;
+        });
+        mapController.move(newLocation, 16);
+      }
+    } catch (e) {
+      debugPrint("Forward geocoding failed: $e");
+    }
   }
 
   Future<void> _determinePosition() async {
@@ -87,7 +128,7 @@ class _RegistrationState extends State<Registration> {
         setState(() {
           selectedLocation = LatLng(position.latitude, position.longitude);
         });
-        mapController.move(selectedLocation, 16.0);
+        mapController.move(selectedLocation, 13);
       }
     } catch (e) {
       debugPrint('Error getting location: $e');
@@ -188,8 +229,6 @@ class _RegistrationState extends State<Registration> {
       return false;
     }
 
-
-
     if (!termsAgreed) {
       showErrorSnackBar('You must agree to the terms and conditions');
       return false;
@@ -204,8 +243,23 @@ class _RegistrationState extends State<Registration> {
     );
   }
 
+  Future<void> submitOwnerRegistration() async {
+    try {
+      // 1️⃣ Show loading spinner
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (_) => const Center(
+              child: CircularProgressIndicator(color: Color(0xFF5F8B4C)),
+            ),
+      );
 
+      final uri = Uri.parse('http://192.168.1.6:8000/api/v1/register-owner');
+      debugPrint('Sending request to: $uri');
 
+// <<<<<<< profilepic
 Future<void> submitOwnerRegistration() async {
   try {
     // 1️⃣ Show loading spinner
@@ -220,157 +274,167 @@ Future<void> submitOwnerRegistration() async {
 
     final uri = Uri.parse('http://192.168.1.18:8000/api/v1/register-owner');
     debugPrint('Sending request to: $uri');
+// =======
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Accept'] = 'application/json';
+// >>>>>>> main
 
-    final request = http.MultipartRequest('POST', uri)
-      ..headers['Accept'] = 'application/json';
-
-    void safePop() {
-      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
-    }
-
-    // 2️⃣ Basic form validation
-    if (_nameController.text.isEmpty ||
-        _phoneController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _shopNameController.text.isEmpty ||
-        _addressController.text.isEmpty) {
-      safePop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
-      return;
-    }
-
-    if (!termsAgreed) {
-      safePop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must agree to the terms and conditions.')),
-      );
-      return;
-    }
-
-    // 3️⃣ Attach text fields
-    request.fields
-      ..['name'] = _nameController.text.trim()
-      ..['phone'] = _phoneController.text.trim()
-      ..['email'] = _emailController.text.trim()
-      ..['password'] = _passwordController.text
-      ..['shop_name'] = _shopNameController.text.trim()
-      ..['address'] = _addressController.text.trim()
-      ..['latitude'] = selectedLocation.latitude.toStringAsFixed(7)
-      ..['longitude'] = selectedLocation.longitude.toStringAsFixed(7)
-      ..['agreed_to_terms'] = termsAgreed ? '1' : '0';
-
-    // 4️⃣ Attach files (if any)
-    if (dtiFile != null) {
-      try {
-        request.files.add(await http.MultipartFile.fromPath(
-          'dti_permit_path',
-          dtiFile!.path,
-        ));
-      } catch (_) { /* ignore */ }
-    }
-    if (permitFile != null) {
-      try {
-        request.files.add(await http.MultipartFile.fromPath(
-          'business_permit_path',
-          permitFile!.path,
-        ));
-      } catch (_) { /* ignore */ }
-    }
-    if (shopPhoto != null) {
-      try {
-        request.files.add(await http.MultipartFile.fromPath(
-          'shop_photo',
-          shopPhoto!.path,
-        ));
-      } catch (_) { /* ignore */ }
-    }
-
-    debugPrint('Request fields: ${request.fields}');
-
-    // 5️⃣ Send
-    final streamed = await request.send();
-    final responseBody = await streamed.stream.bytesToString();
-
-    safePop(); // hide spinner
-    debugPrint('Response ${streamed.statusCode}: $responseBody');
-
-    // 6️⃣ Try to decode JSON only if non-empty
-    Map<String, dynamic>? responseData;
-    if (responseBody.trim().isNotEmpty) {
-      try {
-        final decoded = json.decode(responseBody);
-        if (decoded is Map<String, dynamic>) {
-          responseData = decoded;
-          debugPrint('Decoded JSON: $responseData');
-        }
-      } catch (e) {
-        debugPrint('Invalid JSON: $e');
+      void safePop() {
+        if (mounted && Navigator.canPop(context)) Navigator.pop(context);
       }
-    }
 
-    // 7️⃣ Success
-    if (streamed.statusCode == 200 || streamed.statusCode == 201) {
-      debugPrint('Registration successful');
+      // 2️⃣ Basic form validation
+      if (_nameController.text.isEmpty ||
+          _phoneController.text.isEmpty ||
+          _emailController.text.isEmpty ||
+          _passwordController.text.isEmpty ||
+          _shopNameController.text.isEmpty ||
+          _addressController.text.isEmpty) {
+        safePop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill all required fields')),
+        );
+        return;
+      }
 
-      // extract the new owner/shop ID if available
-      int? ownerId;
-      if (responseData != null &&
-          responseData['data'] is Map<String, dynamic> &&
-          (responseData['data'] as Map<String, dynamic>)['id'] is int) {
-        ownerId = (responseData['data'] as Map<String, dynamic>)['id'] as int;
+      if (!termsAgreed) {
+        safePop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must agree to the terms and conditions.'),
+          ),
+        );
+        return;
+      }
+
+      // 3️⃣ Attach text fields
+      request.fields
+        ..['name'] = _nameController.text.trim()
+        ..['phone'] = _phoneController.text.trim()
+        ..['email'] = _emailController.text.trim()
+        ..['password'] = _passwordController.text
+        ..['shop_name'] = _shopNameController.text.trim()
+        ..['address'] = _addressController.text.trim()
+        ..['latitude'] = selectedLocation.latitude.toStringAsFixed(7)
+        ..['longitude'] = selectedLocation.longitude.toStringAsFixed(7)
+        ..['agreed_to_terms'] = termsAgreed ? '1' : '0';
+
+      // 4️⃣ Attach files (if any)
+      if (dtiFile != null) {
+        try {
+          request.files.add(
+            await http.MultipartFile.fromPath('dti_permit_path', dtiFile!.path),
+          );
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (permitFile != null) {
+        try {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'business_permit_path',
+              permitFile!.path,
+            ),
+          );
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (shopPhoto != null) {
+        try {
+          request.files.add(
+            await http.MultipartFile.fromPath('shop_photo', shopPhoto!.path),
+          );
+        } catch (_) {
+          /* ignore */
+        }
+      }
+
+      debugPrint('Request fields: ${request.fields}');
+
+      // 5️⃣ Send
+      final streamed = await request.send();
+      final responseBody = await streamed.stream.bytesToString();
+
+      safePop(); // hide spinner
+      debugPrint('Response ${streamed.statusCode}: $responseBody');
+
+      // 6️⃣ Try to decode JSON only if non-empty
+      Map<String, dynamic>? responseData;
+      if (responseBody.trim().isNotEmpty) {
+        try {
+          final decoded = json.decode(responseBody);
+          if (decoded is Map<String, dynamic>) {
+            responseData = decoded;
+            debugPrint('Decoded JSON: $responseData');
+          }
+        } catch (e) {
+          debugPrint('Invalid JSON: $e');
+        }
+      }
+
+      // 7️⃣ Success
+      if (streamed.statusCode == 200 || streamed.statusCode == 201) {
+        debugPrint('Registration successful');
+
+        // extract the new owner/shop ID if available
+        int? ownerId;
+        if (responseData != null &&
+            responseData['data'] is Map<String, dynamic> &&
+            (responseData['data'] as Map<String, dynamic>)['id'] is int) {
+          ownerId = (responseData['data'] as Map<String, dynamic>)['id'] as int;
+        }
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration submitted for approval!'),
+            backgroundColor: Color(0xFF5F8B4C),
+          ),
+        );
+
+        // ✨ Save only the ownerId
+        final prefs = await SharedPreferences.getInstance();
+        if (ownerId != null) {
+          await prefs.setInt('owner_id', ownerId);
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ApprovalScreen()),
+        );
+        return;
+      }
+
+      // 8️⃣ Error path
+      String errorMessage = 'Registration failed';
+      if (responseData != null) {
+        errorMessage =
+            responseData['message'] ?? responseData['error'] ?? errorMessage;
+      } else if (streamed.statusCode == 422) {
+        errorMessage = 'Invalid or missing data. Please check all fields.';
+      } else if (streamed.statusCode >= 500) {
+        errorMessage =
+            'Server error (${streamed.statusCode}), try again later.';
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration submitted for approval!'),
-          backgroundColor: Color(0xFF5F8B4C),
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    } catch (e, st) {
+      debugPrint('Exception: $e\n$st');
+      if (!mounted) return;
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
       );
-
-      // ✨ Save only the ownerId
-      final prefs = await SharedPreferences.getInstance();
-      if (ownerId != null) {
-        await prefs.setInt('owner_id', ownerId);
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ApprovalScreen()),
-      );
-      return;
     }
-
-    // 8️⃣ Error path
-    String errorMessage = 'Registration failed';
-    if (responseData != null) {
-      errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
-    } else if (streamed.statusCode == 422) {
-      errorMessage = 'Invalid or missing data. Please check all fields.';
-    } else if (streamed.statusCode >= 500) {
-      errorMessage = 'Server error (${streamed.statusCode}), try again later.';
-    }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-    );
-  } catch (e, st) {
-    debugPrint('Exception: $e\n$st');
-    if (!mounted) return;
-    if (Navigator.canPop(context)) Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Unexpected error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -780,6 +844,9 @@ Future<void> submitOwnerRegistration() async {
                           Expanded(
                             child: TextField(
                               controller: _addressController,
+                              onSubmitted: (value) {
+                                forwardGeocode(value);
+                              },
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
@@ -926,16 +993,36 @@ Future<void> submitOwnerRegistration() async {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: FlutterMap(
-                            mapController:
-                                mapController, // Add the controller here
+                            mapController: mapController,
                             options: MapOptions(
                               initialCenter: selectedLocation,
-                              initialZoom: 15,
+                              initialZoom: 13,
                               onTap: (tapPosition, latLng) {
-                                setState(() {
-                                  selectedLocation = latLng;
-                                });
+                                if (isWithinRadius(
+                                  allowedCenter,
+                                  latLng,
+                                  allowedRadiusKm,
+                                )) {
+                                  setState(() {
+                                    selectedLocation = latLng;
+                                  });
+                                  reverseGeocode(latLng);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please select a location within 10km of Carig Sur, Tuguegarao City.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
+                              interactionOptions: const InteractionOptions(
+                                flags:
+                                    InteractiveFlag.pinchZoom |
+                                    InteractiveFlag.drag, // disables long-press
+                              ),
                             ),
                             children: [
                               TileLayer(
@@ -943,6 +1030,19 @@ Future<void> submitOwnerRegistration() async {
                                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                 userAgentPackageName: 'com.example.refillproo',
                               ),
+                              // CircleLayer(
+                              //   circles: [
+                              //     CircleMarker(
+                              //       point: allowedCenter,
+                              //       // ignore: deprecated_member_use
+                              //       color: Colors.blue.withOpacity(0.2),
+                              //       borderStrokeWidth: 2,
+                              //       borderColor: Colors.blue,
+                              //       useRadiusInMeter: true,
+                              //       radius: 1000, // meters = 3km
+                              //     ),
+                              //   ],
+                              // ),
                               MarkerLayer(
                                 markers: [
                                   Marker(
@@ -966,7 +1066,6 @@ Future<void> submitOwnerRegistration() async {
                 ),
 
                 SizedBox(height: 20 * heightScale),
-
 
                 SizedBox(height: 20 * heightScale),
 
