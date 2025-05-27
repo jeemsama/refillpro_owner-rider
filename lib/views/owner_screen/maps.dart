@@ -164,6 +164,15 @@ class _MapsContentState extends State<MapsContent> {
         throw 'No owner_id saved – please log in first.';
       }
 
+// <<<<<<< profilepic
+      final uri = Uri.parse('http://192.168.1.18:8000/api/v1/refill-stations');
+      final resp = await http.get(uri, headers: {
+        'Accept': 'application/json',
+      });
+
+      if (resp.statusCode != 200) {
+        throw 'Failed to load stations (status ${resp.statusCode})';
+// =======
       // 1️⃣ load your station
       final stationRes = await http.get(
         Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations'),
@@ -171,6 +180,7 @@ class _MapsContentState extends State<MapsContent> {
       );
       if (stationRes.statusCode != 200) {
         throw 'Stations failed (${stationRes.statusCode})';
+// >>>>>>> main
       }
       final stations = (jsonDecode(stationRes.body) as List)
           .map((e) => ShopDetail.fromJson(e))

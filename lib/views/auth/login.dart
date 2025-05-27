@@ -49,6 +49,73 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+// <<<<<<< profilepic
+Future<void> _handleLogin() async {
+  final email    = _emailController.text.trim();
+  final password = _passwordController.text.trim();
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter both email and password')),
+    );
+    return;
+  }
+
+  setState(() => isLoading = true);
+  try {
+    final url = Uri.parse('http://192.168.1.195:8000/api/login');
+    final r = await http
+      .post(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'email': email, 'password': password}),
+      )
+      .timeout(const Duration(seconds: 10));
+
+    debugPrint('Login ${r.statusCode} → ${r.body}');
+    final data = jsonDecode(r.body) as Map<String, dynamic>;
+
+    // top-level token, nested user object
+    final token = data['token'] as String?;
+    final user  = data['user']  as Map<String, dynamic>?;
+    final role  = user?['role'] as String?;
+
+    if (r.statusCode == 200 && token != null && user != null && role != null) {
+      // decide which ID to save:
+      //  - owner → save the owner's own id
+      //  - rider → save the *station owner's* id
+      final int? rawUserId = user['id'] as int?;
+      final int? stationOwnerId = (role == 'owner')
+        ? rawUserId
+        : (user['owner_id'] as int?);
+
+      if (stationOwnerId == null) {
+        throw 'Missing owner_id in login response';
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      await prefs.setInt   ('owner_id',   stationOwnerId);
+      await prefs.setString('role', role);   // <— store “owner” or “rider”
+
+
+            if (kDebugMode) debugPrint('Saved customer_token: $token');
+
+
+      if (role == 'owner') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Home()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RiderHome()),
+        );
+      }
+// =======
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -56,12 +123,13 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter both email and password')),
       );
+// >>>>>>> main
       return;
     }
 
     setState(() => isLoading = true);
     try {
-      final url = Uri.parse('http://192.168.1.6:8000/api/login');
+      final url = Uri.parse('http://192.168.1.195:8000/api/login');
       final r = await http
           .post(
             url,

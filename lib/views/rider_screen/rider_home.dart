@@ -74,10 +74,26 @@ class _RiderHomeState extends State<RiderHome> {
     }
   }
 
+// <<<<<<< profilepic
+  Future<void> _loadStation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ownerId = prefs.getInt('owner_id');
+      if (ownerId == null) throw 'Please log in again.';
+
+      final resp = await http.get(
+        Uri.parse('http://192.168.1.18:8000/api/v1/refill-stations'),
+        headers: {'Accept': 'application/json'},
+      );
+      if (resp.statusCode != 200) {
+        throw 'Failed to fetch stations (${resp.statusCode})';
+      }
+// =======
   Future<Station?> _loadStation() async {
     final prefs = await SharedPreferences.getInstance();
     final ownerId = prefs.getInt('owner_id');
     if (ownerId == null) return null;
+// >>>>>>> main
 
     final resp = await http.get(
       Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations'),
