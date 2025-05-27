@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:refillpro_owner_rider/views/auth/login.dart'; // ← import your login page
+import 'package:image_picker/image_picker.dart';
 
 
 
-const _apiBase = 'http://192.168.1.6:8000';  // ← your `php artisan serve` host:port
+
+const _apiBase = 'http://192.168.1.18:8000';  // ← your `php artisan serve` host:port
 
 
 class Profile extends StatefulWidget {
@@ -293,6 +295,10 @@ class ProfileContent extends StatefulWidget {
 class _ProfileContentState extends State<ProfileContent> {
    String shopName = '';
   String contactNumber = '';
+  String? photoPath;
+
+  XFile? _pickedImage;
+
 
   bool isEditingShopName = false;
   bool isEditingContactNumber = false;
@@ -336,6 +342,7 @@ class _ProfileContentState extends State<ProfileContent> {
       setState(() {
         shopName = body['shop_name'] ?? '';
         contactNumber = body['contact_number'] ?? '';
+        photoPath     = body['shop_photo'];       // <-- new
         shopNameController.text = shopName;
         contactNumberController.text = contactNumber;
         isLoading = false;
@@ -394,6 +401,48 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 }
 
+Future<void> _onEditPhoto() async {
+  final picker = ImagePicker();
+  final picked = await picker.pickImage(source: ImageSource.gallery);
+  if (picked == null) return;
+
+  setState(() {
+    _pickedImage = picked;
+    isSaving = true;
+  });
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token') ?? '';
+  final uri = Uri.parse('$_apiBase/api/owner/profile/photo');
+
+  final req = http.MultipartRequest('POST', uri)
+    ..headers['Authorization'] = 'Bearer $token'
+    ..files.add(await http.MultipartFile.fromPath('shop_photo', picked.path));
+
+  final res = await req.send();
+  final body = await res.stream.bytesToString();
+
+  if (res.statusCode == 200) {
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    setState(() {
+      photoPath = data['shop_photo']; 
+      _pickedImage = null;
+      isSaving = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Shop photo updated!')),
+    );
+  } else {
+    setState(() => isSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to upload photo (${res.statusCode})')),
+    );
+  }
+}
+
+
+
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -437,49 +486,46 @@ class _ProfileContentState extends State<ProfileContent> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: w(125),
-                        height: h(116),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD9D9D9),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1),
-                        ),
-                      ),
-                      Container(
-                        width: w(98),
-                        height: h(98),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black,
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: w(60),
-                          color: const Color(0xFFD9D9D9),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 8,
-                        child: Container(
-                          width: w(24),
-                          height: h(24),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit,
-                            size: fontSize(14),
-                            color: const Color(0xFF1F2937),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+  alignment: Alignment.center,
+  children: [
+    // Background circle
+    CircleAvatar(
+      radius: w(62), // half of 125
+      backgroundColor: const Color(0xFFD9D9D9),
+      backgroundImage: (photoPath != null && photoPath!.isNotEmpty)
+        ? NetworkImage('$_apiBase/storage/${photoPath!}')
+        : null,
+      child: (photoPath == null || photoPath!.isEmpty)
+        ? Icon(Icons.store, size: w(60), color: const Color(0xFF455567))
+        : null,
+    ),
+
+    // Edit icon
+    Positioned(
+      right: 0,
+      bottom: h(8),
+      child: InkWell(
+        onTap: _onEditPhoto,
+        child: Container(
+          width: w(24),
+          height: h(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: isSaving
+              ? const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(Icons.edit, size: fontSize(14), color: const Color(0xFF1F2937)),
+        ),
+      ),
+    ),
+
+  ],
+),
+
                   const SizedBox(height: 10),
                   Text(
                     shopName,

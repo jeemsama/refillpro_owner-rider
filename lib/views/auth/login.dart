@@ -62,7 +62,7 @@ Future<void> _handleLogin() async {
 
   setState(() => isLoading = true);
   try {
-    final url = Uri.parse('http://192.168.1.6:8000/api/login');
+    final url = Uri.parse('http://192.168.1.18:8000/api/login');
     final r = await http
       .post(
         url,

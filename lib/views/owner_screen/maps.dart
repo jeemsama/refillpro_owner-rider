@@ -113,7 +113,7 @@ class _MapsContentState extends State<MapsContent> {
         throw 'no owner_id saved – please register/log in first';
       }
 
-      final uri = Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations');
+      final uri = Uri.parse('http://192.168.1.18:8000/api/v1/refill-stations');
       final resp = await http.get(uri, headers: {
         'Accept': 'application/json',
       });

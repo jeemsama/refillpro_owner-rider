@@ -156,7 +156,7 @@ Future<String> _fetchShopName() async {
   final token = prefs.getString('auth_token') ?? '';
 
   final res = await http.get(
-    Uri.parse('http://192.168.1.6:8000/api/owner/profile'),
+    Uri.parse('http://192.168.1.18:8000/api/owner/profile'),
     headers: {
       'Authorization': 'Bearer $token',
       'Accept': 'application/json',
@@ -707,7 +707,7 @@ class _CompactDeliveryDetailsWidgetState
       }
 
       // Request shop details from backend
-      final url = Uri.parse('http://192.168.1.6:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.18:8000/api/owner/shop-details');
       final response = await http
           .get(
             url,
@@ -1107,7 +1107,7 @@ class _CompactDeliveryDetailsWidgetState
       debugPrint('Sending shop details: $payload');
 
       // Send to backend
-      final url = Uri.parse('http://192.168.1.6:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.18:8000/api/owner/shop-details');
       final response = await http
           .post(
             url,
