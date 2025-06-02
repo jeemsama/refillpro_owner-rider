@@ -160,7 +160,7 @@ class _OrdersContentState extends State<OrdersContent>
       if (ownerId == null) throw 'No owner_id stored; please log in.';
 
       final uri = Uri.parse(
-          'http://192.168.1.6:8000/api/v1/orders/owner?owner_id=$ownerId');
+          'http://192.168.1.17:8000/api/v1/orders/owner?owner_id=$ownerId');
       final resp = await http.get(uri, headers: {'Accept': 'application/json'});
       if (resp.statusCode != 200) {
         throw 'Failed to fetch orders (${resp.statusCode})';
@@ -184,7 +184,7 @@ class _OrdersContentState extends State<OrdersContent>
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.get(
-      Uri.parse('http://192.168.1.6:8000/api/v1/riders'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/riders'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -201,7 +201,7 @@ class _OrdersContentState extends State<OrdersContent>
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.post(
-      Uri.parse('http://192.168.1.6:8000/api/v1/orders/$orderId/accept'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/orders/$orderId/accept'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -225,7 +225,7 @@ Future<void> _deleteOrder(int orderId) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('auth_token') ?? '';
   final resp = await http.delete(
-    Uri.parse('http://192.168.1.6:8000/api/v1/orders/$orderId'),
+    Uri.parse('http://192.168.1.17:8000/api/v1/orders/$orderId'),
     headers: {
       'Accept':        'application/json',
       'Authorization': 'Bearer $token',
@@ -247,7 +247,7 @@ Future<void> _deleteOrder(int orderId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.post(
-      Uri.parse('http://192.168.1.6:8000/api/v1/orders/$orderId/decline'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/orders/$orderId/decline'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

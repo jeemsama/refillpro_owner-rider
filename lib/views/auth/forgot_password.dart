@@ -10,7 +10,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  static const _apiBase = 'http://192.168.1.18:8000/api';
+  static const _apiBase = 'http://192.168.1.17:8000/api';
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isLoading = false;

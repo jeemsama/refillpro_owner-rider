@@ -256,28 +256,11 @@ class _RegistrationState extends State<Registration> {
             ),
       );
 
-      final uri = Uri.parse('http://192.168.1.6:8000/api/v1/register-owner');
+      final uri = Uri.parse('http://192.168.1.17:8000/api/v1/register-owner');
       debugPrint('Sending request to: $uri');
 
-// <<<<<<< profilepic
-Future<void> submitOwnerRegistration() async {
-  try {
-    // 1️⃣ Show loading spinner
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF5F8B4C)),
-      ),
-    );
-
-    final uri = Uri.parse('http://192.168.1.18:8000/api/v1/register-owner');
-    debugPrint('Sending request to: $uri');
-// =======
       final request = http.MultipartRequest('POST', uri)
         ..headers['Accept'] = 'application/json';
-// >>>>>>> main
 
       void safePop() {
         if (mounted && Navigator.canPop(context)) Navigator.pop(context);

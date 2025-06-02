@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/bottom_navbar.dart';
 import 'package:refillpro_owner_rider/views/header.dart';
-import 'package:refillpro_owner_rider/views/owner_screen/add_rider.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/maps.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/orders.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/profile.dart';
+// import 'package:refillpro_owner_rider/views/compact_delivery_details_widget.dart'; 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -21,10 +23,10 @@ class _HomeState extends State<Home> {
 
   // All your tab screens here
   final List<Widget> _screens = const [
-    HomeContent(), // extract your Home screen content into a widget
+    HomeContent(),   // Extracted content
     MapsContent(),
     OrdersContent(),
-    Profile(), // Changed from ProfileContent to Profile
+    Profile(),       // Use your Profile widget
   ];
 
   void _onItemTapped(int index) {
@@ -35,47 +37,44 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    // Don't show header on the Profile tab (index 3)
+    // Don’t show AppHeader on Profile tab (index 3)
     final bool showHeader = _selectedIndex != 3;
-
-    // Don't show navbar on the Profile tab (index 3)
+    // Don’t show bottom navbar on Profile tab (index 3)
     final bool showNavbar = _selectedIndex != 3;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EFEC),
       body: Stack(
         children: [
-          // Header at top (outside SafeArea) - only show if not on Profile tab
+          // 1) The global AppHeader (positioned at the very top)
           if (showHeader)
             const Positioned(top: 50, left: 0, right: 0, child: AppHeader()),
 
-          // Main content and navbar inside SafeArea
+          // 2) The main content (HomeContent, MapsContent, etc.)
           Positioned(
-            // Adjust top position based on whether header is shown
             top: showHeader ? 83 : 0,
             left: 0,
             right: 0,
             bottom: 0,
             child: SafeArea(
-              top: !showHeader, // Apply top safe area if header is not shown
+              top: !showHeader,
               child: Stack(
                 children: [
-                  // Main content - extend to bottom of screen
+                  // 2a) The selected screen’s content
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    bottom: showNavbar ? 70 : 0, // Reduced space above navbar
+                    bottom: showNavbar ? 70 : 0,
                     child: _screens[_selectedIndex],
                   ),
 
-                  // Bottom navigation bar - only show if not on Profile tab
+                  // 2b) Bottom nav bar
                   if (showNavbar)
                     Positioned(
                       left: 0,
                       right: 0,
-                      bottom:
-                          30, // Changed from 30 to 0 to remove space below navbar
+                      bottom: 30,
                       child: CustomBottomNavBar(
                         selectedIndex: _selectedIndex,
                         onItemTapped: _onItemTapped,
@@ -91,7 +90,7 @@ class _HomeState extends State<Home> {
   }
 }
 
-// Shop Status Button that toggles between open and closed
+// Shop Status Button remains the same as before
 class ShopStatusButton extends StatefulWidget {
   const ShopStatusButton({super.key});
 
@@ -104,11 +103,8 @@ class _ShopStatusButtonState extends State<ShopStatusButton> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the scale factor for responsive sizing
     final screenWidth = MediaQuery.of(context).size.width;
     final widthScaleFactor = screenWidth / 401;
-
-    // Helper functions for scaling
     double w(double value) => value * widthScaleFactor;
     double fontSize(double value) => value * widthScaleFactor;
 
@@ -124,7 +120,7 @@ class _ShopStatusButtonState extends State<ShopStatusButton> {
         padding: EdgeInsets.symmetric(horizontal: w(10), vertical: w(5)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 4,
-        shadowColor: Color(0x3F000000),
+        shadowColor: const Color(0x3F000000),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -151,21 +147,13 @@ class _ShopStatusButtonState extends State<ShopStatusButton> {
   }
 }
 
+// Fetch the shop name from your API (unchanged)
 Future<String> _fetchShopName() async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('auth_token') ?? '';
-
   final res = await http.get(
-// <<<<<<< profilepic
-    Uri.parse('http://192.168.1.18:8000/api/owner/profile'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    },
-// =======
-    Uri.parse('http://192.168.1.6:8000/api/owner/profile'),
+    Uri.parse('http://192.168.1.17:8000/api/owner/profile'),
     headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-// >>>>>>> main
   );
   if (res.statusCode == 200) {
     final body = jsonDecode(res.body);
@@ -175,470 +163,392 @@ Future<String> _fetchShopName() async {
   }
 }
 
-class HomeContent extends StatelessWidget {
+
+// ───────────────────────────────────────────────────────────────────────
+// Here’s the modified HomeContent:
+// ───────────────────────────────────────────────────────────────────────
+class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
   @override
+  State<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
+  // Currently selected year (default to current year)
+  int selectedYear = DateTime.now().year;
+
+  // Example list of years; expand or fetch from your backend if needed
+  final List<int> availableYears = [
+    DateTime.now().year - 2,
+    DateTime.now().year - 1,
+    DateTime.now().year,
+  ];
+
+  @override
   Widget build(BuildContext context) {
-    // Get screen dimensions
+    // 1) Screen dimensions & scaling helpers
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-
-    // Calculate scale factor based on design width (401)
     final widthScaleFactor = screenWidth / 401;
 
-    // Function to scale dimensions
     double w(double value) => value * widthScaleFactor;
-    double h(double value) =>
-        value *
-        widthScaleFactor; // Using same scale for height for proportional scaling
-
-    // Function to scale text
+    double h(double value) => value * widthScaleFactor;
     double fontSize(double value) => value * widthScaleFactor;
+
+    // Build data for the currently selected year
+    final List<_MonthlyStat> monthlyStats = _getMonthlyStatsForYear(selectedYear);
 
     return Container(
       color: const Color(0xFFF1EFEC),
       width: screenWidth,
       height: screenHeight,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: w(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with greeting and add rider button
-              Padding(
-                padding: EdgeInsets.only(top: h(10)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FutureBuilder<String>(
-                      future: _fetchShopName(),
-                      builder: (context, snapshot) {
-                        final name = snapshot.data;
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Text(
-                            'Hi, …',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: fontSize(20),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 4),
-                                  blurRadius: 4,
-                                  color: Color.fromRGBO(0, 0, 0, 0.25),
-                                ),
-                              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ─── 1) FIXED HEADER ROW ───────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.only(left: w(20), right: w(20), top: h(10)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                FutureBuilder<String>(
+                  future: _fetchShopName(),
+                  builder: (context, snapshot) {
+                    final name = snapshot.data;
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Text(
+                        'Hi, …',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: fontSize(20),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 4),
+                              blurRadius: 4,
+                              color: const Color.fromRGBO(0, 0, 0, 0.25),
                             ),
-                          );
-                        } else if (snapshot.hasError) {
-                          return Text(
-                            'Hi, owner',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: fontSize(20),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 4),
-                                  blurRadius: 4,
-                                  color: Color.fromRGBO(0, 0, 0, 0.25),
-                                ),
-                              ],
-                            ),
-                          );
-                        } else {
-                          return Text(
-                            'Hi, $name',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: fontSize(20),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 4),
-                                  blurRadius: 4,
-                                  color: Color.fromRGBO(0, 0, 0, 0.25),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                      },
-                    ),
-
-                    // Add rider button
-                    ElevatedButton(
-                      onPressed: () {
-                        // Add rider functionality
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddRider(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5CB338),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: w(10),
-                          vertical: h(5),
+                          ],
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 4,
-                        shadowColor: Color(0x3F000000),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, size: fontSize(12)),
-                          SizedBox(width: w(4)),
-                          Text(
-                            'Add rider',
-                            style: TextStyle(
-                              fontSize: fontSize(10),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w500,
+                      );
+                    } else if (snapshot.hasError) {
+                      return Text(
+                        'Hi, owner',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: fontSize(20),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 4),
+                              blurRadius: 4,
+                              color: const Color.fromRGBO(0, 0, 0, 0.25),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                          ],
+                        ),
+                      );
+                    } else {
+                      return Text(
+                        'Hi, $name',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: fontSize(20),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 4),
+                              blurRadius: 4,
+                              color: const Color.fromRGBO(0, 0, 0, 0.25),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  },
                 ),
-              ),
 
-              SizedBox(height: h(15)),
-
-              // Main blue card with shop status
-              Stack(
-                children: [
-                  // Main blue container
-                  Container(
-                    width: screenWidth - w(40),
-                    height: h(163),
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFF455567),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddRider(),
                       ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5CB338),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: w(10),
+                      vertical: h(5),
                     ),
-                    child: Stack(
-                      children: [
-                        // Current month amount
-                        Positioned(
-                          left: w(28),
-                          top: h(17),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '₱0.0',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: fontSize(24),
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              SizedBox(height: h(1)),
-                              Text(
-                                'May 2025',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: fontSize(10),
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Divider lines
-                        Positioned(
-                          left: w(120),
-                          top: h(102),
-                          child: Opacity(
-                            opacity: 0.50,
-                            child: Container(
-                              width: w(2),
-                              height: h(49),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: w(250),
-                          top: h(102),
-                          child: Opacity(
-                            opacity: 0.50,
-                            child: Container(
-                              width: w(2),
-                              height: h(49),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // April amount
-                        Positioned(
-                          left: w(22),
-                          top: h(117),
-                          child: Column(
-                            children: [
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  '₱10,000.00',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(14),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: h(2)),
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  'April 2025',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(6),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // March amount
-                        Positioned(
-                          left: w(152),
-                          top: h(117),
-                          child: Column(
-                            children: [
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  '₱10,000.00',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(14),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: h(2)),
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  'March 2025',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(6),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // February amount
-                        Positioned(
-                          left: w(273),
-                          top: h(117),
-                          child: Column(
-                            children: [
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  '₱10,000.00',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(14),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: h(2)),
-                              Opacity(
-                                opacity: 0.50,
-                                child: Text(
-                                  'February 2025',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: fontSize(6),
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
+                    elevation: 4,
+                    shadowColor: const Color(0x3F000000),
                   ),
-
-                  // Shop open/close button - positioned at the top right of the card
-                  Positioned(right: w(8), top: h(8), child: ShopStatusButton()),
-                ],
-              ),
-
-              SizedBox(height: h(15)),
-
-              // Three cards in row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Total Orders card
-                  Container(
-                    width: (screenWidth - w(80)) / 3,
-                    height: h(87),
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFF1F2937),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: fontSize(12)),
+                      SizedBox(width: w(4)),
+                      Text(
+                        'Add rider',
+                        style: TextStyle(
+                          fontSize: fontSize(10),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '112',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(24),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: h(5)),
-                        Text(
-                          'Total Orders',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(10),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-
-                  // Pending Orders card
-                  Container(
-                    width: (screenWidth - w(80)) / 3,
-                    height: h(87),
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFF455567),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '5',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(24),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: h(5)),
-                        Text(
-                          'Pending Orders',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(10),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Riders card
-                  Container(
-                    width: (screenWidth - w(80)) / 3,
-                    height: h(87),
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFF1F2937),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '2',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(24),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: h(5)),
-                        Text(
-                          'Riders',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(10),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              // Below the Row of cards
-              SizedBox(height: h(15)),
-
-              // Your custom widget - EditDetailsWidget (if needed)
-              CompactDeliveryDetailsWidget(),
-
-              // Add some space at the bottom for the navbar
-              SizedBox(height: h(100)),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
+
+          SizedBox(height: h(10)),
+
+          // ─── 2) YEAR PICKER DROPDOWN ───────────────────────────────────
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: w(20)),
+            child: Row(
+              children: [
+                Text(
+                  'Select Year:',
+                  style: TextStyle(
+                    fontSize: fontSize(14),
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(width: w(8)),
+                DropdownButton<int>(
+                  value: selectedYear,
+                  icon: Icon(Icons.arrow_drop_down, size: fontSize(20)),
+                  items: availableYears.map((year) {
+                    return DropdownMenuItem<int>(
+                      value: year,
+                      child: Text(
+                        '$year',
+                        style: TextStyle(
+                          fontSize: fontSize(14),
+                          color: Colors.black87,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (newYear) {
+                    if (newYear == null) return;
+                    setState(() {
+                      selectedYear = newYear;
+                      // In a real app, fetch new data for this year here
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: h(15)),
+
+          // ─── 3) SCROLLABLE CONTENT BELOW THE HEADER ─────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: w(20)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ─── A) BAR CHART: MONTHLY EARNINGS ───────────────────────
+                  Text(
+                    'Your Monthly Earnings ($selectedYear)',
+                    style: TextStyle(
+                      fontSize: fontSize(18),
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: h(8)),
+
+                  Container(
+                    width: screenWidth - w(30),
+                    height: h(200),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SfCartesianChart(
+                      margin: EdgeInsets.only(top: h(10), left: w(10), right: w(10)),
+                      primaryXAxis: CategoryAxis(
+                        labelStyle: TextStyle(fontSize: fontSize(10)),
+                        majorGridLines: const MajorGridLines(width: 0),
+                      ),
+                      primaryYAxis: NumericAxis(
+                        labelFormat: '₱{value}',
+                        interval: 5000, // adjust if your earnings exceed 60k
+                        axisLine: const AxisLine(width: 0),
+                        majorTickLines: const MajorTickLines(size: 0),
+                        labelStyle: TextStyle(fontSize: fontSize(10)),
+                      ),
+                      tooltipBehavior: TooltipBehavior(
+                        enable: true,
+                        format: '₱point.y',
+                        header: '',
+                        textStyle: TextStyle(fontSize: fontSize(12)),
+                      ),
+                      series: <ColumnSeries<_MonthlyStat, String>>[
+                        ColumnSeries<_MonthlyStat, String>(
+                          dataSource: monthlyStats,
+                          xValueMapper: (_MonthlyStat stat, _) => stat.month,
+                          yValueMapper: (_MonthlyStat stat, _) => stat.earnings,
+                          color: const Color(0xFF5CB338),
+                          width: 0.6,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                          ),
+                          dataLabelSettings: DataLabelSettings(
+                            isVisible: true,
+                            textStyle: TextStyle(
+                              fontSize: fontSize(10),
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            labelAlignment: ChartDataLabelAlignment.top,
+                            labelPosition: ChartDataLabelPosition.outside,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: h(24)),
+
+                  // ─── B) PIE CHART: MONTHLY ORDERS ──────────────────────────
+                  Text(
+                    'Your Monthly Orders Distribution ($selectedYear)',
+                    style: TextStyle(
+                      fontSize: fontSize(18),
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: h(8)),
+
+                  Container(
+                    width: screenWidth - w(30),
+                    height: h(200),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: SfCircularChart(
+                      margin: EdgeInsets.zero,
+                      legend: Legend(
+                        isVisible: true,
+                        height: '100%',
+                        overflowMode: LegendItemOverflowMode.wrap,
+                        position: LegendPosition.bottom,
+                        textStyle: TextStyle(
+                          fontSize: fontSize(12),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      tooltipBehavior: TooltipBehavior(
+                        enable: true,
+                        format: '{point.x}: {point.y}',
+                        textStyle: TextStyle(fontSize: fontSize(12)),
+                      ),
+                      series: <PieSeries<_MonthlyStat, String>>[
+                        PieSeries<_MonthlyStat, String>(
+                          dataSource: monthlyStats,
+                          xValueMapper: (_MonthlyStat stat, _) => stat.month,
+                          yValueMapper: (_MonthlyStat stat, _) => stat.orders,
+                          dataLabelMapper: (_MonthlyStat stat, _) => '${stat.month}: ${stat.orders}',
+                          dataLabelSettings: DataLabelSettings(
+                            isVisible: true,
+                            textStyle: TextStyle(
+                              fontSize: fontSize(10),
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          explode: true,
+                          radius: '80%',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: h(24)),
+
+                  // ─── C) EXTRA CONTENT (if desired) ────────────────────────────
+                  const CompactDeliveryDetailsWidget(),
+                  SizedBox(height: h(100)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Generate dummy data for January→December for the selected year.
+  // In production, replace this with an async fetch to your backend that returns:
+  //   • monthly earnings (double)
+  //   • monthly orders (int)
+  // for each month of that year.
+  List<_MonthlyStat> _getMonthlyStatsForYear(int year) {
+    final isCurrentYear = (year == DateTime.now().year);
+    return <_MonthlyStat>[
+      _MonthlyStat('Jan', (isCurrentYear ? 8000 : 8500), (isCurrentYear ? 12 : 10)),
+      _MonthlyStat('Feb', (isCurrentYear ? 9000 : 10500), (isCurrentYear ? 14 : 11)),
+      _MonthlyStat('Mar', (isCurrentYear ? 10000 : 9800), (isCurrentYear ? 18 : 15)),
+      _MonthlyStat('Apr', (isCurrentYear ? 11000 : 11200), (isCurrentYear ? 20 : 17)),
+      _MonthlyStat('May', (isCurrentYear ? 9500 : 9000), (isCurrentYear ? 16 : 14)),
+      _MonthlyStat('Jun', (isCurrentYear ? 12000 : 12500), (isCurrentYear ? 22 : 19)),
+      _MonthlyStat('Jul', (isCurrentYear ? 10000 : 10200), (isCurrentYear ? 18 : 16)),
+      _MonthlyStat('Aug', (isCurrentYear ? 11500 : 10800), (isCurrentYear ? 21 : 17)),
+      _MonthlyStat('Sep', (isCurrentYear ? 9800 : 9500), (isCurrentYear ? 17 : 13)),
+      _MonthlyStat('Oct', (isCurrentYear ? 12300 : 11800), (isCurrentYear ? 23 : 20)),
+      _MonthlyStat('Nov', (isCurrentYear ? 10700 : 10500), (isCurrentYear ? 19 : 16)),
+      _MonthlyStat('Dec', (isCurrentYear ? 13000 : 12500), (isCurrentYear ? 24 : 21)),
+    ];
+  }
 }
+
+/// Simple data‐model class for monthly stats.
+class _MonthlyStat {
+  final String month;     // e.g. 'Jan', 'Feb', … 'Dec'
+  final double earnings;  // e.g. 12000.0
+  final int orders;       // e.g. 20
+  _MonthlyStat(this.month, this.earnings, this.orders);
+}
+
 
 class CompactDeliveryDetailsWidget extends StatefulWidget {
   const CompactDeliveryDetailsWidget({super.key});
@@ -711,7 +621,7 @@ class _CompactDeliveryDetailsWidgetState
       }
 
       // Request shop details from backend
-      final url = Uri.parse('http://192.168.1.18:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.17:8000/api/owner/shop-details');
       final response = await http
           .get(
             url,
@@ -1111,7 +1021,7 @@ class _CompactDeliveryDetailsWidgetState
       debugPrint('Sending shop details: $payload');
 
       // Send to backend
-      final url = Uri.parse('http://192.168.1.18:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.17:8000/api/owner/shop-details');
       final response = await http
           .post(
             url,

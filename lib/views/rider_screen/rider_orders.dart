@@ -72,7 +72,7 @@ class _RiderOrdersState extends State<RiderOrders> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.get(
-      Uri.parse('http://192.168.1.6:8000/api/v1/rider/orders'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/rider/orders'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -95,7 +95,7 @@ Future<void> _completeOrder(int orderId) async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('auth_token') ?? '';
   final resp = await http.post(
-    Uri.parse('http://192.168.1.6:8000/api/v1/orders/$orderId/complete'),
+    Uri.parse('http://192.168.1.17:8000/api/v1/orders/$orderId/complete'),
     headers: {
       'Accept': 'application/json',
       'Authorization': 'Bearer $token',

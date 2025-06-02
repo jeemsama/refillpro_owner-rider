@@ -24,11 +24,11 @@ class Station {
     required this.lng,
   });
   factory Station.fromJson(Map<String, dynamic> j) => Station(
-    id: j['id'] as int,
-    shopName: j['shop_name'] as String,
-    lat: double.parse(j['latitude'].toString()),
-    lng: double.parse(j['longitude'].toString()),
-  );
+        id: j['id'] as int,
+        shopName: j['shop_name'] as String,
+        lat: double.parse(j['latitude'].toString()),
+        lng: double.parse(j['longitude'].toString()),
+      );
 }
 
 class RiderHome extends StatefulWidget {
@@ -74,29 +74,13 @@ class _RiderHomeState extends State<RiderHome> {
     }
   }
 
-// <<<<<<< profilepic
-  Future<void> _loadStation() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final ownerId = prefs.getInt('owner_id');
-      if (ownerId == null) throw 'Please log in again.';
-
-      final resp = await http.get(
-        Uri.parse('http://192.168.1.18:8000/api/v1/refill-stations'),
-        headers: {'Accept': 'application/json'},
-      );
-      if (resp.statusCode != 200) {
-        throw 'Failed to fetch stations (${resp.statusCode})';
-      }
-// =======
   Future<Station?> _loadStation() async {
     final prefs = await SharedPreferences.getInstance();
     final ownerId = prefs.getInt('owner_id');
     if (ownerId == null) return null;
-// >>>>>>> main
 
     final resp = await http.get(
-      Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/refill-stations'),
       headers: {'Accept': 'application/json'},
     );
     if (resp.statusCode != 200) return null;
@@ -115,7 +99,7 @@ class _RiderHomeState extends State<RiderHome> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.get(
-      Uri.parse('http://192.168.1.6:8000/api/v1/rider/orders'),
+      Uri.parse('http://192.168.1.17:8000/api/v1/rider/orders'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

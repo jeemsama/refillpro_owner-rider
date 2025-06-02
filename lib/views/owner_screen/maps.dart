@@ -69,9 +69,8 @@ class _MapsState extends State<Maps> {
               ),
             ]),
           ),
-        )
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
@@ -164,23 +163,13 @@ class _MapsContentState extends State<MapsContent> {
         throw 'No owner_id saved – please log in first.';
       }
 
-// <<<<<<< profilepic
-      final uri = Uri.parse('http://192.168.1.18:8000/api/v1/refill-stations');
-      final resp = await http.get(uri, headers: {
-        'Accept': 'application/json',
-      });
-
-      if (resp.statusCode != 200) {
-        throw 'Failed to load stations (status ${resp.statusCode})';
-// =======
       // 1️⃣ load your station
       final stationRes = await http.get(
-        Uri.parse('http://192.168.1.6:8000/api/v1/refill-stations'),
+        Uri.parse('http://192.168.1.17:8000/api/v1/refill-stations'),
         headers: {'Accept': 'application/json'},
       );
       if (stationRes.statusCode != 200) {
         throw 'Stations failed (${stationRes.statusCode})';
-// >>>>>>> main
       }
       final stations = (jsonDecode(stationRes.body) as List)
           .map((e) => ShopDetail.fromJson(e))
@@ -194,7 +183,7 @@ class _MapsContentState extends State<MapsContent> {
       // 2️⃣ load your orders
       final ordersRes = await http.get(
         Uri.parse(
-            'http://192.168.1.6:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
+            'http://192.168.1.17:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
         headers: {'Accept': 'application/json'},
       );
       if (ordersRes.statusCode != 200) {
