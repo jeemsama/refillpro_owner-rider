@@ -62,10 +62,11 @@ Future<void> _handleLogin() async {
 
   setState(() => isLoading = true);
   try {
-    final url = Uri.parse('http://192.168.1.17:8000/api/login');
-    final r = await http
+    // 1) Log in
+    final loginUrl = Uri.parse('http://192.168.1.22:8000/api/login');
+    final loginResponse = await http
       .post(
-        url,
+        loginUrl,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -74,18 +75,15 @@ Future<void> _handleLogin() async {
       )
       .timeout(const Duration(seconds: 10));
 
-    debugPrint('Login ${r.statusCode} → ${r.body}');
-    final data = jsonDecode(r.body) as Map<String, dynamic>;
+    debugPrint('Login ${loginResponse.statusCode} → ${loginResponse.body}');
+    final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
 
-    // top-level token, nested user object
-    final token = data['token'] as String?;
-    final user  = data['user']  as Map<String, dynamic>?;
+    final token = loginData['token'] as String?;
+    final user  = loginData['user']  as Map<String, dynamic>?;
     final role  = user?['role'] as String?;
 
-    if (r.statusCode == 200 && token != null && user != null && role != null) {
-      // decide which ID to save:
-      //  - owner → save the owner's own id
-      //  - rider → save the *station owner's* id
+    if (loginResponse.statusCode == 200 && token != null && user != null && role != null) {
+      // Determine stationOwnerId
       final int? rawUserId = user['id'] as int?;
       final int? stationOwnerId = (role == 'owner')
         ? rawUserId
@@ -95,15 +93,49 @@ Future<void> _handleLogin() async {
         throw 'Missing owner_id in login response';
       }
 
+      // 2) Save token, owner_id, and role
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
       await prefs.setInt   ('owner_id',   stationOwnerId);
-      await prefs.setString('role', role);   // <— store “owner” or “rider”
+      await prefs.setString('role',       role);
 
+      if (kDebugMode) {
+        debugPrint('Saved auth_token: $token');
+        debugPrint('Saved owner_id: $stationOwnerId');
+      }
 
-            if (kDebugMode) debugPrint('Saved customer_token: $token');
+      // 3) Fetch profile so we can extract shop_id from the nested object
+      final profileUrl = Uri.parse('http://192.168.1.22:8000/api/owner/profile');
+      final profileResponse = await http.get(
+        profileUrl,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      debugPrint('Profile ${profileResponse.statusCode} → ${profileResponse.body}');
+      if (profileResponse.statusCode == 200) {
+        final profileData = jsonDecode(profileResponse.body) as Map<String, dynamic>;
 
+        // ─── CHANGE THIS LINE ─────────────────────────────────────────
+        // Instead of:
+        // final int? shopIdFromProfile = profileData['shop_id'] as int?;
+        //
+        // Do this if your API nests the shop id under "owner_shop_details" in the JSON:
+        final int? shopIdFromProfile = profileData['shop_id'] as int?;
+        // ────────────────────────────────────────────────────────────────
 
+        if (shopIdFromProfile == null) {
+          throw 'Missing shop_id in profile response';
+        }
+        await prefs.setInt('shop_id', shopIdFromProfile);
+
+        if (kDebugMode) debugPrint('Saved shop_id: $shopIdFromProfile');
+      } else {
+        throw 'Failed to fetch owner profile (status: ${profileResponse.statusCode})';
+      }
+
+      // 4) Navigate to the correct home screen
       if (role == 'owner') {
         Navigator.pushReplacement(
           context,
@@ -118,9 +150,8 @@ Future<void> _handleLogin() async {
       return;
     }
 
-    final err = (data['message'] ?? data['error'] ?? 'Login failed').toString();
+    final err = (loginData['message'] ?? loginData['error'] ?? 'Login failed').toString();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
-
   } on FormatException {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Invalid response from server.')),
@@ -133,6 +164,7 @@ Future<void> _handleLogin() async {
     setState(() => isLoading = false);
   }
 }
+
 
 
 

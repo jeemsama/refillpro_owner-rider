@@ -69,7 +69,7 @@ class _AddRiderState extends State<AddRider> {
     final token = await _getToken();
     if (token == null) return;
 
-    final url = Uri.parse('http://192.168.1.17/api/v1/riders');
+    final url = Uri.parse('http://192.168.1.22/api/v1/riders');
     try {
       final response = await http
           .get(
@@ -144,7 +144,7 @@ class _AddRiderState extends State<AddRider> {
     }
 
     try {
-      final url = Uri.parse('http://192.168.1.17:8000/api/v1/riders');
+      final url = Uri.parse('http://192.168.1.22:8000/api/v1/riders');
       final response = await http
           .post(
             url,
@@ -204,7 +204,7 @@ class _AddRiderState extends State<AddRider> {
     final token = await _getToken();
     if (token == null) return;
 
-    final url = Uri.parse('http://192.168.1.17:8000/api/v1/riders/${rider.id}');
+    final url = Uri.parse('http://192.168.1.22:8000/api/v1/riders/${rider.id}');
     try {
       final response = await http
           .delete(

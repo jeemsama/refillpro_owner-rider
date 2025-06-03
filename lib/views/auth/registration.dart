@@ -256,7 +256,7 @@ class _RegistrationState extends State<Registration> {
             ),
       );
 
-      final uri = Uri.parse('http://192.168.1.17:8000/api/v1/register-owner');
+      final uri = Uri.parse('http://192.168.1.22:8000/api/v1/register-owner');
       debugPrint('Sending request to: $uri');
 
       final request = http.MultipartRequest('POST', uri)

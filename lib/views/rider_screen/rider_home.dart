@@ -80,7 +80,7 @@ class _RiderHomeState extends State<RiderHome> {
     if (ownerId == null) return null;
 
     final resp = await http.get(
-      Uri.parse('http://192.168.1.17:8000/api/v1/refill-stations'),
+      Uri.parse('http://192.168.1.22:8000/api/v1/refill-stations'),
       headers: {'Accept': 'application/json'},
     );
     if (resp.statusCode != 200) return null;
@@ -99,7 +99,7 @@ class _RiderHomeState extends State<RiderHome> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.get(
-      Uri.parse('http://192.168.1.17:8000/api/v1/rider/orders'),
+      Uri.parse('http://192.168.1.22:8000/api/v1/rider/orders'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

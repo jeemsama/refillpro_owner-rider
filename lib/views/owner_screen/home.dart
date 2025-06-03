@@ -148,25 +148,27 @@ class _ShopStatusButtonState extends State<ShopStatusButton> {
 }
 
 // Fetch the shop name from your API (unchanged)
-Future<String> _fetchShopName() async {
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('auth_token') ?? '';
-  final res = await http.get(
-    Uri.parse('http://192.168.1.17:8000/api/owner/profile'),
-    headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-  );
-  if (res.statusCode == 200) {
-    final body = jsonDecode(res.body);
-    return body['shop_name'] as String;
-  } else {
-    throw Exception('Failed to load shop name');
-  }
-}
+// Future<String> _fetchShopName() async {
+//   final prefs = await SharedPreferences.getInstance();
+//   final token = prefs.getString('auth_token') ?? '';
+//   final res = await http.get(
+//     Uri.parse('http://192.168.1.22:8000/api/owner/profile'),
+//     headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+//   );
+//   if (res.statusCode == 200) {
+//     final body = jsonDecode(res.body);
+//     return body['shop_name'] as String;
+//   } else {
+//     throw Exception('Failed to load shop name');
+//   }
+// }
 
 
 // ───────────────────────────────────────────────────────────────────────
 // Here’s the modified HomeContent:
 // ───────────────────────────────────────────────────────────────────────
+
+
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
@@ -175,35 +177,62 @@ class HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<HomeContent> {
-  // Currently selected year (default to current year)
+  // 1) Year selection
   int selectedYear = DateTime.now().year;
-
-  // Example list of years; expand or fetch from your backend if needed
   final List<int> availableYears = [
     DateTime.now().year - 2,
     DateTime.now().year - 1,
     DateTime.now().year,
   ];
 
+  // 2) State for stats data
+  bool isLoading = false;
+  String? errorMessage;
+  List<_MonthlyStat> monthlyStats = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatsForYear(selectedYear);
+  }
+
+  Future<void> _loadStatsForYear(int year) async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+      monthlyStats = [];
+    });
+
+    try {
+      final stats = await _fetchStatsFromApi(year);
+      setState(() {
+        monthlyStats = stats;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 1) Screen dimensions & scaling helpers
-    final screenSize = MediaQuery.of(context).size;
-    final screenWidth = screenSize.width;
-    final screenHeight = screenSize.height;
+    // 1) Screen dimensions & scaling
+    final screenWidth = MediaQuery.of(context).size.width;
     final widthScaleFactor = screenWidth / 401;
+    double w(double v) => v * widthScaleFactor;
+    double h(double v) => v * widthScaleFactor;
+    double fontSize(double v) => v * widthScaleFactor;
 
-    double w(double value) => value * widthScaleFactor;
-    double h(double value) => value * widthScaleFactor;
-    double fontSize(double value) => value * widthScaleFactor;
-
-    // Build data for the currently selected year
-    final List<_MonthlyStat> monthlyStats = _getMonthlyStatsForYear(selectedYear);
+    // 2) Filter out any months where orders == 0
+    final List<_MonthlyStat> nonZeroMonths =
+        monthlyStats.where((stat) => stat.orders > 0).toList();
 
     return Container(
       color: const Color(0xFFF1EFEC),
       width: screenWidth,
-      height: screenHeight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -215,8 +244,7 @@ class _HomeContentState extends State<HomeContent> {
               children: [
                 FutureBuilder<String>(
                   future: _fetchShopName(),
-                  builder: (context, snapshot) {
-                    final name = snapshot.data;
+                  builder: (c, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Text(
                         'Hi, …',
@@ -225,11 +253,11 @@ class _HomeContentState extends State<HomeContent> {
                           fontSize: fontSize(20),
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w600,
-                          shadows: [
+                          shadows: const [
                             Shadow(
-                              offset: const Offset(0, 4),
+                              offset: Offset(0, 4),
                               blurRadius: 4,
-                              color: const Color.fromRGBO(0, 0, 0, 0.25),
+                              color: Color.fromRGBO(0, 0, 0, 0.25),
                             ),
                           ],
                         ),
@@ -242,16 +270,17 @@ class _HomeContentState extends State<HomeContent> {
                           fontSize: fontSize(20),
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w600,
-                          shadows: [
+                          shadows: const [
                             Shadow(
-                              offset: const Offset(0, 4),
+                              offset: Offset(0, 4),
                               blurRadius: 4,
-                              color: const Color.fromRGBO(0, 0, 0, 0.25),
+                              color: Color.fromRGBO(0, 0, 0, 0.25),
                             ),
                           ],
                         ),
                       );
                     } else {
+                      final name = snapshot.data!;
                       return Text(
                         'Hi, $name',
                         style: TextStyle(
@@ -259,11 +288,11 @@ class _HomeContentState extends State<HomeContent> {
                           fontSize: fontSize(20),
                           fontFamily: 'Poppins',
                           fontWeight: FontWeight.w600,
-                          shadows: [
+                          shadows: const [
                             Shadow(
-                              offset: const Offset(0, 4),
+                              offset: Offset(0, 4),
                               blurRadius: 4,
-                              color: const Color.fromRGBO(0, 0, 0, 0.25),
+                              color: Color.fromRGBO(0, 0, 0, 0.25),
                             ),
                           ],
                         ),
@@ -277,7 +306,7 @@ class _HomeContentState extends State<HomeContent> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const AddRider(),
+                        builder: (c) => const AddRider(),
                       ),
                     );
                   },
@@ -333,11 +362,11 @@ class _HomeContentState extends State<HomeContent> {
                 DropdownButton<int>(
                   value: selectedYear,
                   icon: Icon(Icons.arrow_drop_down, size: fontSize(20)),
-                  items: availableYears.map((year) {
+                  items: availableYears.map((yr) {
                     return DropdownMenuItem<int>(
-                      value: year,
+                      value: yr,
                       child: Text(
-                        '$year',
+                        '$yr',
                         style: TextStyle(
                           fontSize: fontSize(14),
                           color: Colors.black87,
@@ -349,8 +378,8 @@ class _HomeContentState extends State<HomeContent> {
                     if (newYear == null) return;
                     setState(() {
                       selectedYear = newYear;
-                      // In a real app, fetch new data for this year here
                     });
+                    _loadStatsForYear(newYear);
                   },
                 ),
               ],
@@ -359,7 +388,7 @@ class _HomeContentState extends State<HomeContent> {
 
           SizedBox(height: h(15)),
 
-          // ─── 3) SCROLLABLE CONTENT BELOW THE HEADER ─────────────────────
+          // ─── 3) SCROLLABLE CONTENT ─────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -367,146 +396,214 @@ class _HomeContentState extends State<HomeContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ─── A) BAR CHART: MONTHLY EARNINGS ───────────────────────
-                  Text(
-                    'Your Monthly Earnings ($selectedYear)',
-                    style: TextStyle(
-                      fontSize: fontSize(18),
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  SizedBox(height: h(8)),
-
-                  Container(
-                    width: screenWidth - w(30),
-                    height: h(200),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: SfCartesianChart(
-                      margin: EdgeInsets.only(top: h(10), left: w(10), right: w(10)),
-                      primaryXAxis: CategoryAxis(
-                        labelStyle: TextStyle(fontSize: fontSize(10)),
-                        majorGridLines: const MajorGridLines(width: 0),
+                  // Show loading spinner or error if needed
+                  if (isLoading)
+                    Center(child: CircularProgressIndicator())
+                  else if (errorMessage != null)
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: h(20)),
+                      child: Text(
+                        'Error: $errorMessage',
+                        style: TextStyle(
+                            color: Colors.red, fontSize: fontSize(14)),
                       ),
-                      primaryYAxis: NumericAxis(
-                        labelFormat: '₱{value}',
-                        interval: 5000, // adjust if your earnings exceed 60k
-                        axisLine: const AxisLine(width: 0),
-                        majorTickLines: const MajorTickLines(size: 0),
-                        labelStyle: TextStyle(fontSize: fontSize(10)),
-                      ),
-                      tooltipBehavior: TooltipBehavior(
-                        enable: true,
-                        format: '₱point.y',
-                        header: '',
-                        textStyle: TextStyle(fontSize: fontSize(12)),
-                      ),
-                      series: <ColumnSeries<_MonthlyStat, String>>[
-                        ColumnSeries<_MonthlyStat, String>(
-                          dataSource: monthlyStats,
-                          xValueMapper: (_MonthlyStat stat, _) => stat.month,
-                          yValueMapper: (_MonthlyStat stat, _) => stat.earnings,
-                          color: const Color(0xFF5CB338),
-                          width: 0.6,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
+                    )
+                  else ...[
+                    // ─── A & B) TWO CHARTS IN A ROW ─────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ─── Left: Monthly Earnings Chart ────────────────
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Your Monthly Earnings ($selectedYear)',
+                                style: TextStyle(
+                                  fontSize: fontSize(13),
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: h(8)),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (c) => EnlargeBarChartPage(
+                                        monthlyStats: monthlyStats,
+                                        year: selectedYear,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  height: h(200),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: SfCartesianChart(
+                                    margin: EdgeInsets.only(
+                                      top: h(10),
+                                      left: w(10),
+                                      right: w(10),
+                                    ),
+                                    primaryXAxis: CategoryAxis(
+                                      labelStyle: TextStyle(fontSize: fontSize(10)),
+                                      majorGridLines:
+                                          const MajorGridLines(width: 0),
+                                    ),
+                                    primaryYAxis: NumericAxis(
+                                      labelFormat: '₱{value}',
+                                      interval: 1000, // adjust to your data
+                                      axisLine: const AxisLine(width: 0),
+                                      majorTickLines:
+                                          const MajorTickLines(size: 0),
+                                      labelStyle:
+                                          TextStyle(fontSize: fontSize(10)),
+                                    ),
+                                    tooltipBehavior: TooltipBehavior(
+                                      enable: true,
+                                      format: '₱point.y',
+                                      header: '',
+                                      textStyle:
+                                          TextStyle(fontSize: fontSize(12)),
+                                    ),
+                                    series: <ColumnSeries<_MonthlyStat, String>>[
+                                      ColumnSeries<_MonthlyStat, String>(
+                                        dataSource: monthlyStats,
+                                        xValueMapper:
+                                            (_MonthlyStat stat, _) =>
+                                                stat.month,
+                                        yValueMapper:
+                                            (_MonthlyStat stat, _) =>
+                                                stat.earnings,
+                                        color: const Color(0xFF455567),
+                                        width: 0.6,
+                                        borderRadius:
+                                            const BorderRadius.only(
+                                          topLeft: Radius.circular(4),
+                                          topRight: Radius.circular(4),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          dataLabelSettings: DataLabelSettings(
-                            isVisible: true,
-                            textStyle: TextStyle(
-                              fontSize: fontSize(10),
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            labelAlignment: ChartDataLabelAlignment.top,
-                            labelPosition: ChartDataLabelPosition.outside,
+                        ),
+
+                        SizedBox(width: w(20)),
+
+                        // ─── Right: Monthly Orders (Pie Chart) ─────────
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Your Monthly Orders ($selectedYear)',
+                                style: TextStyle(
+                                  fontSize: fontSize(13),
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: h(8)),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (c) => EnlargePieChartPage(
+                                        monthlyStats: nonZeroMonths,
+                                        year: selectedYear,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  height: h(200),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: SfCircularChart(
+                                    margin: EdgeInsets.zero,
+                                    legend: Legend(
+                                      isVisible: true,
+                                      height: '100%',
+                                      overflowMode:
+                                          LegendItemOverflowMode.wrap,
+                                      position: LegendPosition.bottom,
+                                      textStyle: TextStyle(
+                                        fontSize: fontSize(12),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    tooltipBehavior: TooltipBehavior(
+                                      enable: true,
+                                      format: '{point.x}: {point.y}',
+                                      textStyle:
+                                          TextStyle(fontSize: fontSize(12)),
+                                    ),
+                                    series: <PieSeries<_MonthlyStat, String>>[
+                                      PieSeries<_MonthlyStat, String>(
+                                        dataSource: nonZeroMonths,
+                                        xValueMapper:
+                                            (_MonthlyStat stat, _) =>
+                                                stat.month,
+                                        yValueMapper:
+                                            (_MonthlyStat stat, _) => stat.orders,
+                                        dataLabelMapper:
+                                            (_MonthlyStat stat, _) =>
+                                                '${stat.month}: ${stat.orders}',
+                                        dataLabelSettings:
+                                            const DataLabelSettings(
+                                          isVisible: true,
+                                          textStyle: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        explode: true,
+                                        radius: '80%',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
 
-                  SizedBox(height: h(24)),
 
-                  // ─── B) PIE CHART: MONTHLY ORDERS ──────────────────────────
-                  Text(
-                    'Your Monthly Orders Distribution ($selectedYear)',
-                    style: TextStyle(
-                      fontSize: fontSize(18),
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  SizedBox(height: h(8)),
+                    SizedBox(height: h(24)),
 
-                  Container(
-                    width: screenWidth - w(30),
-                    height: h(200),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: SfCircularChart(
-                      margin: EdgeInsets.zero,
-                      legend: Legend(
-                        isVisible: true,
-                        height: '100%',
-                        overflowMode: LegendItemOverflowMode.wrap,
-                        position: LegendPosition.bottom,
-                        textStyle: TextStyle(
-                          fontSize: fontSize(12),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      tooltipBehavior: TooltipBehavior(
-                        enable: true,
-                        format: '{point.x}: {point.y}',
-                        textStyle: TextStyle(fontSize: fontSize(12)),
-                      ),
-                      series: <PieSeries<_MonthlyStat, String>>[
-                        PieSeries<_MonthlyStat, String>(
-                          dataSource: monthlyStats,
-                          xValueMapper: (_MonthlyStat stat, _) => stat.month,
-                          yValueMapper: (_MonthlyStat stat, _) => stat.orders,
-                          dataLabelMapper: (_MonthlyStat stat, _) => '${stat.month}: ${stat.orders}',
-                          dataLabelSettings: DataLabelSettings(
-                            isVisible: true,
-                            textStyle: TextStyle(
-                              fontSize: fontSize(10),
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          explode: true,
-                          radius: '80%',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: h(24)),
-
-                  // ─── C) EXTRA CONTENT (if desired) ────────────────────────────
-                  const CompactDeliveryDetailsWidget(),
-                  SizedBox(height: h(100)),
+                    // ─── C) EXTRA CONTENT ────────────────────────────────────
+                    const CompactDeliveryDetailsWidget(),
+                    SizedBox(height: h(100)),
+                  ],
                 ],
               ),
             ),
@@ -516,39 +613,233 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Generate dummy data for January→December for the selected year.
-  // In production, replace this with an async fetch to your backend that returns:
-  //   • monthly earnings (double)
-  //   • monthly orders (int)
-  // for each month of that year.
-  List<_MonthlyStat> _getMonthlyStatsForYear(int year) {
-    final isCurrentYear = (year == DateTime.now().year);
-    return <_MonthlyStat>[
-      _MonthlyStat('Jan', (isCurrentYear ? 8000 : 8500), (isCurrentYear ? 12 : 10)),
-      _MonthlyStat('Feb', (isCurrentYear ? 9000 : 10500), (isCurrentYear ? 14 : 11)),
-      _MonthlyStat('Mar', (isCurrentYear ? 10000 : 9800), (isCurrentYear ? 18 : 15)),
-      _MonthlyStat('Apr', (isCurrentYear ? 11000 : 11200), (isCurrentYear ? 20 : 17)),
-      _MonthlyStat('May', (isCurrentYear ? 9500 : 9000), (isCurrentYear ? 16 : 14)),
-      _MonthlyStat('Jun', (isCurrentYear ? 12000 : 12500), (isCurrentYear ? 22 : 19)),
-      _MonthlyStat('Jul', (isCurrentYear ? 10000 : 10200), (isCurrentYear ? 18 : 16)),
-      _MonthlyStat('Aug', (isCurrentYear ? 11500 : 10800), (isCurrentYear ? 21 : 17)),
-      _MonthlyStat('Sep', (isCurrentYear ? 9800 : 9500), (isCurrentYear ? 17 : 13)),
-      _MonthlyStat('Oct', (isCurrentYear ? 12300 : 11800), (isCurrentYear ? 23 : 20)),
-      _MonthlyStat('Nov', (isCurrentYear ? 10700 : 10500), (isCurrentYear ? 19 : 16)),
-      _MonthlyStat('Dec', (isCurrentYear ? 13000 : 12500), (isCurrentYear ? 24 : 21)),
+  // ──────────────────────────────────────────────────────────
+  /// Fetch the authenticated owner’s shop name.
+  Future<String> _fetchShopName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final res = await http.get(
+      Uri.parse('http://192.168.1.22:8000/api/owner/profile'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    if (res.statusCode == 200) {
+      final body = jsonDecode(res.body);
+      return body['shop_name'] as String;
+    } else {
+      throw Exception('Failed to load shop name');
+    }
+  }
+
+  /// Call Laravel endpoint `/api/owner/stats?year=$year` and parse the result.
+  Future<List<_MonthlyStat>> _fetchStatsFromApi(int year) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+
+    final url =
+        Uri.parse('http://192.168.1.22:8000/api/owner/stats?year=$year');
+    final res = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Error fetching stats: ${res.statusCode}');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    debugPrint('DEBUG raw stats JSON: ${jsonEncode(data)}');
+
+    final monthsMap = data['monthly'] as Map<String, dynamic>;
+
+    List<_MonthlyStat> list = [];
+    for (int m = 1; m <= 12; m++) {
+      final monthKey = m.toString();
+      if (monthsMap.containsKey(monthKey)) {
+        final entry = monthsMap[monthKey] as Map<String, dynamic>;
+        final earnings = (entry['earnings'] as num).toDouble();
+        final orders = (entry['orders'] as num).toInt();
+        list.add(_MonthlyStat(_monthName(m), earnings, orders));
+      } else {
+        list.add(_MonthlyStat(_monthName(m), 0.0, 0));
+      }
+    }
+
+    debugPrint('DEBUG parsed monthlyStats list:');
+    for (var stat in list) {
+      debugPrint('  ${stat.month}: earnings=${stat.earnings}, orders=${stat.orders}');
+    }
+
+    return list;
+  }
+
+  String _monthName(int m) {
+    const names = <String>[
+      '', // dummy index 0
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
+    return names[m];
   }
 }
 
-/// Simple data‐model class for monthly stats.
+class EnlargePieChartPage extends StatelessWidget {
+  // ignore: library_private_types_in_public_api
+  final List<_MonthlyStat> monthlyStats; // already filtered
+  final int year;
+
+  const EnlargePieChartPage({
+    super.key,
+    required this.monthlyStats,
+    required this.year,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1F2937),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Monthly Orders ($year)',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SfCircularChart(
+          margin: EdgeInsets.zero,
+          legend: Legend(
+            isVisible: true,
+            height: '100%',
+            overflowMode: LegendItemOverflowMode.wrap,
+            position: LegendPosition.bottom,
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          tooltipBehavior: TooltipBehavior(
+            enable: true,
+            format: '{point.x}: {point.y}',
+            textStyle: const TextStyle(fontSize: 14),
+          ),
+          series: <PieSeries<_MonthlyStat, String>>[
+            PieSeries<_MonthlyStat, String>(
+              dataSource: monthlyStats,
+              xValueMapper: (_MonthlyStat stat, _) => stat.month,
+              yValueMapper: (_MonthlyStat stat, _) => stat.orders,
+              dataLabelMapper: (_MonthlyStat stat, _) =>
+                  '${stat.month}: ${stat.orders}',
+              dataLabelSettings: const DataLabelSettings(
+                isVisible: true,
+                textStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+              explode: true,
+              radius: '80%',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class EnlargeBarChartPage extends StatelessWidget {
+  // ignore: library_private_types_in_public_api
+  final List<_MonthlyStat> monthlyStats;
+  final int year;
+
+  const EnlargeBarChartPage({
+    super.key,
+    required this.monthlyStats,
+    required this.year,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1F2937),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Monthly Earnings ($year)',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SfCartesianChart(
+          margin: EdgeInsets.zero,
+          primaryXAxis: CategoryAxis(
+            labelStyle: const TextStyle(fontSize: 12),
+            majorGridLines: const MajorGridLines(width: 0),
+          ),
+          primaryYAxis: NumericAxis(
+            labelFormat: '₱{value}',
+            interval: 5000, // adjust if needed
+            axisLine: const AxisLine(width: 0),
+            majorTickLines: const MajorTickLines(size: 0),
+            labelStyle: const TextStyle(fontSize: 12),
+          ),
+          tooltipBehavior: TooltipBehavior(
+            enable: true,
+            format: 'point.y',
+            header: '',
+            textStyle: const TextStyle(fontSize: 14),
+          ),
+          series: <ColumnSeries<_MonthlyStat, String>>[
+            ColumnSeries<_MonthlyStat, String>(
+              dataSource: monthlyStats,
+              xValueMapper: (_MonthlyStat stat, _) => stat.month,
+              yValueMapper: (_MonthlyStat stat, _) => stat.earnings,
+              color: const Color(0xFF455567),
+              width: 0.6,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(6),
+                topRight: Radius.circular(6),
+              ),
+              // dataLabelSettings: const DataLabelSettings(
+              //   isVisible: true,
+              //   textStyle: TextStyle(
+              //     fontSize: 12,
+              //     color: Colors.white12,
+              //     fontWeight: FontWeight.w600,
+              //   ),
+              //   labelAlignment: ChartDataLabelAlignment.top,
+              //   labelPosition: ChartDataLabelPosition.outside,
+              // ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple data‐model for month, earnings, and orders.
 class _MonthlyStat {
   final String month;     // e.g. 'Jan', 'Feb', … 'Dec'
   final double earnings;  // e.g. 12000.0
   final int orders;       // e.g. 20
   _MonthlyStat(this.month, this.earnings, this.orders);
 }
-
 
 class CompactDeliveryDetailsWidget extends StatefulWidget {
   const CompactDeliveryDetailsWidget({super.key});
@@ -594,6 +885,9 @@ class _CompactDeliveryDetailsWidgetState
       TextEditingController(text: '₱50.00');
   final TextEditingController _dispenserGallonPriceController =
       TextEditingController(text: '₱50.00');
+    //  ➤ NEW: Controller for “Borrow gallon” price:
+  final TextEditingController _borrowGallonPriceController =
+      TextEditingController(text: '₱0.00');
 
   @override
   void initState() {
@@ -606,6 +900,7 @@ class _CompactDeliveryDetailsWidgetState
   void dispose() {
     _regularGallonPriceController.dispose();
     _dispenserGallonPriceController.dispose();
+    _borrowGallonPriceController.dispose();
     super.dispose();
   }
 
@@ -621,7 +916,7 @@ class _CompactDeliveryDetailsWidgetState
       }
 
       // Request shop details from backend
-      final url = Uri.parse('http://192.168.1.17:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.22:8000/api/owner/shop-details');
       final response = await http
           .get(
             url,
@@ -665,6 +960,11 @@ class _CompactDeliveryDetailsWidgetState
             _dispenserGallonPriceController.text =
                 '₱${dispenserPrice.toString()}';
           }
+          //  ➤ NEW: Update borrow gallon price
+          final borrowPrice = shopDetails['borrow_price'];
+          if (borrowPrice != null) {
+            _borrowGallonPriceController.text = '₱${borrowPrice.toString()}';
+          }
         });
       } else {
         // If 404 or other error, we'll initialize with defaults (already done in constructor)
@@ -679,243 +979,344 @@ class _CompactDeliveryDetailsWidgetState
   }
 
   @override
-  Widget build(BuildContext context) {
-    // Get screen dimensions
-    final screenSize = MediaQuery.of(context).size;
-    final screenWidth = screenSize.width;
+Widget build(BuildContext context) {
+  // Get screen dimensions
+  final screenSize = MediaQuery.of(context).size;
+  final screenWidth = screenSize.width;
 
-    // Calculate scale factor based on design width (401)
-    final widthScaleFactor = screenWidth / 401;
+  // Calculate scale factor based on design width (401)
+  final widthScaleFactor = screenWidth / 401;
 
-    // Function to scale dimensions
-    double w(double value) => value * widthScaleFactor;
-    double h(double value) => value * widthScaleFactor;
+  // Function to scale dimensions
+  double w(double value) => value * widthScaleFactor;
+  double h(double value) => value * widthScaleFactor;
 
-    // Function to scale text
-    double fontSize(double value) => value * widthScaleFactor;
+  // Function to scale text
+  double fontSize(double value) => value * widthScaleFactor;
 
-    return Container(
-      width: screenWidth - w(40),
-      decoration: ShapeDecoration(
-        color: Color(0xffF1EFEC),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: w(15), vertical: h(15)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Edit details header
-            Text(
-              'Edit details',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: fontSize(18),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-              ),
+  return Container(
+    width: screenWidth - w(40),
+    decoration: ShapeDecoration(
+      color: const Color(0xffF1EFEC),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    ),
+    child: Padding(
+      padding: EdgeInsets.symmetric(horizontal: w(15), vertical: h(15)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ─── Edit details header ───────────────────────────────────────
+          Text(
+            'Edit details',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: fontSize(18),
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
             ),
+          ),
 
-            SizedBox(height: h(12)),
+          SizedBox(height: h(12)),
 
-            // Preferred delivery time section
-            Text(
-              'Preffered delivery time',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: fontSize(16),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-              ),
+          // ─── Preferred delivery time section ─────────────────────────
+          Text(
+            'Preferred delivery time',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: fontSize(16),
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
             ),
+          ),
 
-            SizedBox(height: h(8)),
+          SizedBox(height: h(8)),
 
-            // Delivery time buttons in a wrapped layout
-            Wrap(
-              spacing: w(6),
-              runSpacing: h(8),
-              children:
-                  _deliveryTimes.map((time) {
-                    final isSelected = _selectedTimes.contains(time);
-                    return InkWell(
+          // Delivery time buttons in a wrapped layout
+          Wrap(
+            spacing: w(6),
+            runSpacing: h(8),
+            children: _deliveryTimes.map((time) {
+              final isSelected = _selectedTimes.contains(time);
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedTimes.remove(time);
+                    } else {
+                      _selectedTimes.add(time);
+                    }
+                  });
+                },
+                child: Container(
+                  width: w(60),
+                  height: h(28),
+                  decoration: ShapeDecoration(
+                    color: isSelected
+                        ? const Color(0xFF5CB338)
+                        : const Color(0xFF1F2937),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: isSelected
+                          ? const BorderSide(color: Colors.blue, width: 2.0)
+                          : BorderSide.none,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      time,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: fontSize(12),
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          SizedBox(height: h(12)),
+
+          // ─── Collection day section ───────────────────────────────────
+          Text(
+            'Collection day',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: fontSize(16),
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          SizedBox(height: h(5)),
+
+          // Collection day selection – compact row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _collectionDays.map((day) {
+              final isSelected = _selectedDays.contains(day);
+              return Column(
+                children: [
+                  Container(
+                    width: w(18),
+                    height: h(18),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF1F2937) : Colors.white,
+                      border: Border.all(color: const Color(0xFF1F2937), width: 1.5),
+                    ),
+                    child: InkWell(
                       onTap: () {
                         setState(() {
                           if (isSelected) {
-                            _selectedTimes.remove(time);
+                            _selectedDays.remove(day);
                           } else {
-                            _selectedTimes.add(time);
+                            _selectedDays.add(day);
                           }
                         });
                       },
-                      child: Container(
-                        width: w(60),
-                        height: h(28),
-                        decoration: ShapeDecoration(
-                          color:
-                              isSelected
-                                  ? const Color(0xFF5CB338)
-                                  : const Color(0xFF1F2937),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            side:
-                                isSelected
-                                    ? const BorderSide(
-                                      color: Colors.blue,
-                                      width: 2.0,
-                                    )
-                                    : BorderSide.none,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            time,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fontSize(12),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-            ),
+                    ),
+                  ),
+                  SizedBox(height: h(2)),
+                  Text(
+                    day,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: fontSize(10),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
 
-            SizedBox(height: h(12)),
+          SizedBox(height: h(15)),
 
-            // Collection day section
-            Text(
-              'Collection day',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: fontSize(16),
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
+          // ─── Borrow gallon row ───────────────────────────────────────
+          _buildBorrowPriceRow(screenWidth - w(40)),
+
+          SizedBox(height: h(15)),
+
+          // ─── Regular & Dispenser gallon row ─────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Regular gallon (fixed product)
+              _buildGallonItem(
+                'images/regular.png',
+                _regularGallonPriceController,
+                (screenWidth - w(40)) / 2 - w(10),
               ),
-            ),
 
-            SizedBox(height: h(5)),
+              // Dispenser gallon (fixed product)
+              _buildGallonItem(
+                'images/dispenser.png',
+                _dispenserGallonPriceController,
+                (screenWidth - w(40)) / 2 - w(10),
+              ),
+            ],
+          ),
 
-            // Collection day selection - more compact
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children:
-                  _collectionDays.map((day) {
-                    final isSelected = _selectedDays.contains(day);
-                    return Column(
-                      children: [
-                        Container(
-                          width: w(18),
-                          height: h(18),
-                          decoration: BoxDecoration(
-                            color:
-                                isSelected
-                                    ? const Color(0xFF1F2937)
-                                    : Colors.white,
-                            border: Border.all(
-                              color: const Color(0xFF1F2937),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedDays.remove(day);
-                                } else {
-                                  _selectedDays.add(day);
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                        SizedBox(height: h(2)),
-                        Text(
-                          day,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: fontSize(10),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-            ),
+          SizedBox(height: h(15)),
 
-            SizedBox(height: h(15)),
-
-            // Fixed product types: Regular and Dispenser gallons side by side
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Regular gallon (fixed product)
-                _buildGallonItem(
-                  'images/regular.png',
-                  _regularGallonPriceController,
-                  screenWidth / 2 - w(50),
+          // ─── Save button ─────────────────────────────────────────────
+          Center(
+            child: ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      await _saveDetails();
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(w(10)),
                 ),
+                minimumSize: Size(w(96), h(36)),
+                elevation: 2,
+                disabledBackgroundColor: Colors.grey,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: w(20),
+                      height: h(20),
+                      child: const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2.0,
+                      ),
+                    )
+                  : Text(
+                      'Save',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: fontSize(14),
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
-                // Dispenser gallon (fixed product)
-                _buildGallonItem(
-                  'images/dispenser.png',
-                  _dispenserGallonPriceController,
-                  screenWidth / 2 - w(50),
+/// Helper method to build the “Borrow gallon (₱0): [ TextField ]” row
+Widget _buildBorrowPriceRow(double totalWidth) {
+  const double rowHeight = 36;
+  const double horizontalPadding = 16;
+
+  return Container(
+    width: totalWidth,
+    height: rowHeight,
+    decoration: ShapeDecoration(
+      color: const Color(0xFF1F2937),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      shadows: const [
+        BoxShadow(
+          color: Color(0x3F000000),
+          blurRadius: 4,
+          offset: Offset(0, 4),
+          spreadRadius: 0,
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        // Left label: "Borrow gallon (₱0):"
+        Padding(
+          padding: const EdgeInsets.only(left: horizontalPadding),
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Borrow gallon (',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                TextSpan(
+                  text: '₱${_borrowGallonPriceController.text}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextSpan(
+                  text: '):',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
+          ),
+        ),
 
-            SizedBox(height: h(15)),
+        // Spacer pushes the right-side text field to the end
+        const Spacer(),
 
-            // Save button
-            Center(
-              child: ElevatedButton(
-                onPressed:
-                    _isLoading
-                        ? null
-                        : () async {
-                          await _saveDetails();
-                        },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F2937),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(w(10)),
-                  ),
-                  minimumSize: Size(w(96), h(36)),
-                  elevation: 2,
-                  disabledBackgroundColor: Colors.grey,
-                ),
-                child:
-                    _isLoading
-                        ? SizedBox(
-                          width: w(20),
-                          height: h(20),
-                          child: const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                            strokeWidth: 2.0,
-                          ),
-                        )
-                        : Text(
-                          'Save',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: fontSize(14),
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+        // Right-side text field container
+        Padding(
+          padding: const EdgeInsets.only(right: horizontalPadding),
+          child: Container(
+            width: 131,
+            height: 26,
+            decoration: ShapeDecoration(
+              color: const Color(0xFFD9D9D9),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
               ),
             ),
-          ],
+            child: Center(
+              child: TextField(
+                controller: _borrowGallonPriceController,
+                textAlign: TextAlign.end,
+                decoration: const InputDecoration(
+                  hintText: 'Type your price here',
+                  hintStyle: TextStyle(
+                    color: Colors.black,
+                    fontSize: 15,
+                    fontFamily: 'Roboto',
+                    fontWeight: FontWeight.w800,
+                    height: 2,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w800,
+                  height: 2,
+                ),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+            ),
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
+
+
 
   Widget _buildGallonItem(
     String imagePath,
@@ -931,7 +1332,7 @@ class _CompactDeliveryDetailsWidgetState
     double fontSize(double value) => value * widthScaleFactor;
 
     return Container(
-      width: width,
+      width: 150 * widthScaleFactor, // Scale width based on design
       height: h(180), // Reduced height to make it more compact
       decoration: ShapeDecoration(
         color: const Color(0xFF1F2937),
@@ -954,7 +1355,7 @@ class _CompactDeliveryDetailsWidgetState
               width: width * 0.8,
               height: h(26),
               decoration: ShapeDecoration(
-                color: const Color(0xFFD9D9D9),
+                color: const Color(0xFF1F2937),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(5),
                 ),
@@ -968,7 +1369,7 @@ class _CompactDeliveryDetailsWidgetState
                   contentPadding: EdgeInsets.zero,
                 ),
                 style: TextStyle(
-                  color: Colors.black,
+                  color: Colors.white,
                   fontSize: fontSize(15),
                   fontFamily: 'Roboto',
                   fontWeight: FontWeight.w600,
@@ -1005,6 +1406,11 @@ class _CompactDeliveryDetailsWidgetState
             _dispenserGallonPriceController.text.replaceAll('₱', '').trim(),
           ) ??
           50.0;
+          //  ➤ NEW: parse borrow price
+    final borrowPrice = double.tryParse(
+          _borrowGallonPriceController.text.replaceAll('₱', '').trim(),
+        ) ??
+        0.0;
 
       // Create payload based on OwnerShopDetails model with fixed product types
       final payload = {
@@ -1016,12 +1422,13 @@ class _CompactDeliveryDetailsWidgetState
         'dispenser_gallon_price': dispenserPrice,
         'has_small_gallon': false, // Always false - product not offered
         'small_gallon_price': 30.0, // Default value in case backend requires it
+        'borrow_price': borrowPrice,
       };
 
       debugPrint('Sending shop details: $payload');
 
       // Send to backend
-      final url = Uri.parse('http://192.168.1.17:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.22:8000/api/owner/shop-details');
       final response = await http
           .post(
             url,

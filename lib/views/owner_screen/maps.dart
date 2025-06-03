@@ -165,7 +165,7 @@ class _MapsContentState extends State<MapsContent> {
 
       // 1️⃣ load your station
       final stationRes = await http.get(
-        Uri.parse('http://192.168.1.17:8000/api/v1/refill-stations'),
+        Uri.parse('http://192.168.1.22:8000/api/v1/refill-stations'),
         headers: {'Accept': 'application/json'},
       );
       if (stationRes.statusCode != 200) {
@@ -183,7 +183,7 @@ class _MapsContentState extends State<MapsContent> {
       // 2️⃣ load your orders
       final ordersRes = await http.get(
         Uri.parse(
-            'http://192.168.1.17:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
+            'http://192.168.1.22:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
         headers: {'Accept': 'application/json'},
       );
       if (ordersRes.statusCode != 200) {
