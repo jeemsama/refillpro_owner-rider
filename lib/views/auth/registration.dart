@@ -6,11 +6,14 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+
+
 
 class Registration extends StatefulWidget {
   const Registration({super.key});
@@ -24,6 +27,8 @@ class _RegistrationState extends State<Registration> {
   final LatLng allowedCenter = LatLng(17.6607, 121.7525); // Approx: Carig Sur
   final double allowedRadiusKm = 1.0;
   final Distance _distance = const Distance();
+  bool _isPasswordHidden = true;
+
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -40,6 +45,8 @@ class _RegistrationState extends State<Registration> {
   File? permitFile;
 
   File? shopPhoto;
+  bool _shopPhotoFromGallery = false;
+
   final ImagePicker picker = ImagePicker();
 
   Map<String, bool> afternoonSlots = {
@@ -180,6 +187,7 @@ class _RegistrationState extends State<Registration> {
     if (pickedFile != null) {
       setState(() {
         shopPhoto = File(pickedFile.path);
+        _shopPhotoFromGallery = true;
       });
     }
   }
@@ -191,6 +199,7 @@ class _RegistrationState extends State<Registration> {
     if (pickedFile != null) {
       setState(() {
         shopPhoto = File(pickedFile.path);
+        _shopPhotoFromGallery = false;
       });
     }
   }
@@ -207,6 +216,11 @@ class _RegistrationState extends State<Registration> {
       showErrorSnackBar('Please enter your phone number');
       return false;
     }
+
+    if (_phoneController.text.length != 11) {
+    showErrorSnackBar('Phone number must be exactly 11 digits');
+    return false;
+  }
 
     if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
       showErrorSnackBar('Please enter a valid email address');
@@ -285,6 +299,18 @@ class _RegistrationState extends State<Registration> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('You must agree to the terms and conditions.'),
+          ),
+        );
+        return;
+      }
+
+      // ───────── NEW: Check that the selectedLocation is within Carig Sur ─────────
+      if (!isWithinRadius(allowedCenter, selectedLocation, allowedRadiusKm)) {
+        safePop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shop address must be within Carig Sur, Tuguegarao City only.'),
+            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -393,19 +419,34 @@ class _RegistrationState extends State<Registration> {
       // 8️⃣ Error path
       String errorMessage = 'Registration failed';
       if (responseData != null) {
-        errorMessage =
-            responseData['message'] ?? responseData['error'] ?? errorMessage;
+        // Check for validation errors
+        if (responseData['errors'] != null) {
+          final errors = responseData['errors'] as Map<String, dynamic>;
+          if (errors.containsKey('phone')) {
+            // Typically Laravel returns a list of messages under 'errors'
+            final phoneErrors = errors['phone'] as List<dynamic>;
+            if (phoneErrors.isNotEmpty) {
+              errorMessage = phoneErrors.first.toString();
+            }
+          } else if (responseData['message'] != null) {
+            errorMessage = responseData['message'];
+          }
+        } else if (responseData['message'] != null) {
+          errorMessage = responseData['message'];
+        } else if (responseData['error'] != null) {
+          errorMessage = responseData['error'];
+        }
       } else if (streamed.statusCode == 422) {
         errorMessage = 'Invalid or missing data. Please check all fields.';
       } else if (streamed.statusCode >= 500) {
-        errorMessage =
-            'Server error (${streamed.statusCode}), try again later.';
+        errorMessage = 'Server error (${streamed.statusCode}), try again later.';
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
       );
+
     } catch (e, st) {
       debugPrint('Exception: $e\n$st');
       if (!mounted) return;
@@ -508,6 +549,7 @@ class _RegistrationState extends State<Registration> {
                             child: TextField(
                               controller: _nameController,
                               decoration: InputDecoration(
+                                hintText: 'ex: Juan Dela Cruz',
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -526,42 +568,49 @@ class _RegistrationState extends State<Registration> {
                       SizedBox(height: 15 * heightScale),
 
                       // Phone input
-                      Row(
-                        children: [
-                          const SizedBox(
-                            width: 72,
-                            child: Text(
-                              'Phone:',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFFE5E7EB),
-                                fontSize: 16,
-                                fontFamily: 'Roboto',
-                                fontWeight: FontWeight.w500,
-                                height: 1.25,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 10 * widthScale),
-                          Expanded(
-                            child: TextField(
-                              controller: _phoneController,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: const Color(0xFFD9D9D9),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 0,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 72,
+                                child: Text(
+                                  'Phone:',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFFE5E7EB),
+                                    fontSize: 16,
+                                    fontFamily: 'Roboto',
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.25,
+                                  ),
                                 ),
                               ),
-                            ),
+                              SizedBox(width: 10 * widthScale),
+                              Expanded(
+                                child: TextField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(11),
+                                  ],
+                                  decoration: InputDecoration(
+                                    hintText: '09XXXXXXXXX',
+                                    filled: true,
+                                    fillColor: const Color(0xFFD9D9D9),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 0,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+
                       SizedBox(height: 15 * heightScale),
 
                       // Email input
@@ -586,6 +635,7 @@ class _RegistrationState extends State<Registration> {
                             child: TextField(
                               controller: _emailController,
                               decoration: InputDecoration(
+                                hintText: 'email@example.com',
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -603,6 +653,7 @@ class _RegistrationState extends State<Registration> {
                       ),
                       SizedBox(height: 15 * heightScale),
 
+                      // Password input
                       // Password input
                       Row(
                         children: [
@@ -624,8 +675,9 @@ class _RegistrationState extends State<Registration> {
                           Expanded(
                             child: TextField(
                               controller: _passwordController,
-                              obscureText: true,
+                              obscureText: _isPasswordHidden,
                               decoration: InputDecoration(
+                                hintText: '•••••• (at least 6 characters)',
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -636,11 +688,25 @@ class _RegistrationState extends State<Registration> {
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide.none,
                                 ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isPasswordHidden
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                    color: Colors.grey[700],
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordHidden = !_isPasswordHidden;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
+
                       SizedBox(height: 20 * heightScale),
 
                       // File upload section
@@ -657,12 +723,33 @@ class _RegistrationState extends State<Registration> {
                       ),
                       SizedBox(height: 15 * heightScale),
 
-                      // Choose file buttons
+                      // Row containing two Columns: one for DTI, one for Business Permit
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
+                          // ──────── DTI Permit Column ────────
                           Column(
                             children: [
+                              // If a DTI file has been picked, show its name in a horizontal scroller
+                              if (dtiFile != null)
+                                SizedBox(
+                                  width: 84 * widthScale,  // match button width
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Text(
+                                      // Extract basename; or use path.basename(dtiFile!.path) if you added path package
+                                      dtiFile!.path.split('/').last,
+                                      style: TextStyle(
+                                        color: const Color(0xFFE5E7EB),
+                                        fontSize: 12,
+                                        fontFamily: 'Roboto',
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              // The actual “Choose File” button for DTI
                               ElevatedButton(
                                 onPressed: pickDTIFile,
                                 style: ElevatedButton.styleFrom(
@@ -698,8 +785,29 @@ class _RegistrationState extends State<Registration> {
                               ),
                             ],
                           ),
+
+                          // ──────── Business Permit Column ────────
                           Column(
                             children: [
+                              // If a business permit file has been picked, show its name in a horizontal scroller
+                              if (permitFile != null)
+                                SizedBox(
+                                  width: 84 * widthScale,  // match button width
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Text(
+                                      permitFile!.path.split('/').last,
+                                      style: TextStyle(
+                                        color: const Color(0xFFE5E7EB),
+                                        fontSize: 12,
+                                        fontFamily: 'Roboto',
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              // The actual “Choose File” button for Business Permit
                               ElevatedButton(
                                 onPressed: pickPermitFile,
                                 style: ElevatedButton.styleFrom(
@@ -789,6 +897,7 @@ class _RegistrationState extends State<Registration> {
                             child: TextField(
                               controller: _shopNameController,
                               decoration: InputDecoration(
+                                hintText: 'ex: Juan Water Station',
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -831,6 +940,7 @@ class _RegistrationState extends State<Registration> {
                                 forwardGeocode(value);
                               },
                               decoration: InputDecoration(
+                                hintText: 'St., Brgy, Municipality/City, Province',
                                 filled: true,
                                 fillColor: const Color(0xFFD9D9D9),
                                 contentPadding: const EdgeInsets.symmetric(
@@ -849,109 +959,125 @@ class _RegistrationState extends State<Registration> {
 
                       SizedBox(height: 15 * heightScale),
 
-                      // picture of shop overview
-                      const Text(
-                        'Upload a photo or take a photo in front of your refilling station.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFFE5E7EB),
-                          fontSize: 13,
-                          fontFamily: 'Roboto',
-                          fontWeight: FontWeight.w500,
-                          height: 1.54,
+                      // ─────── Shop Photo Section ───────
+                const Text(
+                  'Upload a photo or take a photo in front of your refilling station.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFFE5E7EB),
+                    fontSize: 13,
+                    fontFamily: 'Roboto',
+                    fontWeight: FontWeight.w500,
+                    height: 1.54,
+                  ),
+                ),
+                SizedBox(height: 15 * heightScale),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // ─── “Choose a photo” Column ───
+                    Column(
+                      children: [
+                        // Show filename only if last action was from gallery
+                        if (shopPhoto != null && _shopPhotoFromGallery)
+                          SizedBox(
+                            width: 84 * widthScale,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Text(
+                                path.basename(shopPhoto!.path),
+                                style: TextStyle(
+                                  color: const Color(0xFFE5E7EB),
+                                  fontSize: 12,
+                                  fontFamily: 'Roboto',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ElevatedButton(
+                          onPressed: choosePhotoFromGallery,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFBDC4D4),
+                            minimumSize: Size(
+                              84 * widthScale,
+                              18 * heightScale,
+                            ),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                          child: const Text(
+                            'Choose a photo',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF222222),
+                              fontSize: 10,
+                              fontFamily: 'Roboto',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Column(
-                            children: [
-                              ElevatedButton(
-                                onPressed: choosePhotoFromGallery,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFBDC4D4),
-                                  minimumSize: Size(
-                                    84 * widthScale,
-                                    18 * heightScale,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Choose a photo',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Color(0xFF222222),
-                                    fontSize: 10,
-                                    fontFamily: 'Roboto',
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        SizedBox(height: 4 * heightScale),
+                      ],
+                    ),
+
+                    // ─── “Take a photo” Column ───
+                    Column(
+                      children: [
+                        // Show filename only if last action was from camera
+                        if (shopPhoto != null && !_shopPhotoFromGallery)
+                          SizedBox(
+                            width: 84 * widthScale,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Text(
+                                path.basename(shopPhoto!.path),
+                                style: TextStyle(
+                                  color: const Color(0xFFE5E7EB),
+                                  fontSize: 12,
+                                  fontFamily: 'Roboto',
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-
-                              // if (shopPhoto != null)
-                              //   Padding(
-                              //     padding: const EdgeInsets.only(top: 10),
-                              //     child: Image.file(
-                              //       shopPhoto!,
-                              //       width: 200,
-                              //       height: 200,
-                              //       fit: BoxFit.cover,
-                              //     ),
-                              //   ),
-                              SizedBox(height: 4 * heightScale),
-                            ],
+                            ),
                           ),
-                          Column(
-                            children: [
-                              ElevatedButton(
-                                onPressed: takePhotoWithCamera,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFBDC4D4),
-                                  minimumSize: Size(
-                                    84 * widthScale,
-                                    18 * heightScale,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Take a photo',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Color(0xFF222222),
-                                    fontSize: 10,
-                                    fontFamily: 'Roboto',
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-
-                              // if (shopPhoto != null)
-                              //   Padding(
-                              //     padding: const EdgeInsets.only(top: 10),
-                              //     child: Image.file(
-                              //       shopPhoto!,
-                              //       width: 200,
-                              //       height: 200,
-                              //       fit: BoxFit.cover,
-                              //     ),
-                              //   ),
-                              SizedBox(height: 4 * heightScale),
-                            ],
+                        ElevatedButton(
+                          onPressed: takePhotoWithCamera,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFBDC4D4),
+                            minimumSize: Size(
+                              84 * widthScale,
+                              18 * heightScale,
+                            ),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
                           ),
-                        ],
-                      ),
+                          child: const Text(
+                            'Take a photo',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF222222),
+                              fontSize: 10,
+                              fontFamily: 'Roboto',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 4 * heightScale),
+                      ],
+                    ),
+                  ],
+                ),
 
                       SizedBox(height: 15 * heightScale),
 
                       // Pin location
                       const Text(
-                        'pin your shop location',
+                        'Pin your shop location',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFFE5E7EB),
@@ -1080,8 +1206,67 @@ class _RegistrationState extends State<Registration> {
                         ),
                         SizedBox(height: 20 * heightScale),
 
-                        // Scrollable terms text
-                        Container(
+                        // ───────── Tapable/scrollable box of terms ─────────
+                      GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => Dialog(
+                              backgroundColor: const Color(0xFF455567),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Container(
+                                padding: EdgeInsets.all(16 * widthScale),
+                                width: screenWidth * 0.8,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // ─── Title Row ───
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Terms and Conditions',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: isSmallScreen ? 18 : 20,
+                                              fontFamily: 'Poppins',
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.close, color: Colors.white),
+                                          onPressed: () => Navigator.of(context).pop(),
+                                        ),
+                                      ],
+                                    ),
+
+                                    // ─── Scrollable content ───
+                                    SizedBox(
+                                      height: 300 * heightScale,
+                                      child: SingleChildScrollView(
+                                        child: Text(
+                                          'By registering as a Refilling Station Owner or Delivery Rider on the RefillPro platform, you agree to abide by the following terms and conditions. You certify that all information provided, including personal details, business documents (DTI Certificate and Business Permit), and service preferences, are accurate and truthful. You acknowledge that submission of your registration does not guarantee immediate approval, and all applications are subject to verification by RefillPro administrators. Approved owners are solely responsible for managing their station profile, including the registration and oversight of their assigned delivery riders. Any misuse, fraudulent activity, or breach of platform policies may result in account suspension or permanent removal from the platform. By proceeding, you also consent to the storage and processing of your data in accordance with RefillPro\'s privacy policy.',
+                                          style: TextStyle(
+                                            color: const Color(0xFFE5E7EB),
+                                            fontSize: isSmallScreen ? 14 : 16,
+                                            fontFamily: 'Roboto',
+                                            fontWeight: FontWeight.w500,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
                           height: 150 * heightScale,
                           decoration: BoxDecoration(
                             color: const Color(0xFF455567).withAlpha(128),
@@ -1103,6 +1288,8 @@ class _RegistrationState extends State<Registration> {
                             ),
                           ),
                         ),
+                      ),
+
                         SizedBox(height: 20 * heightScale),
 
                         // Agreement checkbox

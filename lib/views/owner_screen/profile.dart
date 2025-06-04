@@ -8,6 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:refillpro_owner_rider/views/auth/login.dart'; // ← import your login page
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geocoding/geocoding.dart';
+// import 'package:geolocator/geolocator.dart';
+
 
 
 
@@ -293,9 +298,31 @@ class ProfileContent extends StatefulWidget {
 }
 
 class _ProfileContentState extends State<ProfileContent> {
-   String shopName = '';
+  String shopName = '';
   String contactNumber = '';
+  String address = '';
+  double? latitude;
+  double? longitude;
   String? photoPath;
+  
+
+  // Used to compute distance in kilometers
+final Distance _distance = const Distance();
+
+// Carig Sur “center” and maximum allowed radius (1 km)  
+final LatLng _allowedCenter = LatLng(17.6607, 121.7525);
+final double _allowedRadiusKm = 1.0;
+final MapController _mapController = MapController();
+
+
+// Returns true if `point` is within `radiusKm` of `center`
+bool _isWithinRadius(LatLng center, LatLng point, double radiusKm) {
+  return _distance.as(LengthUnit.Kilometer, center, point) <= radiusKm;
+}
+
+  // For map fallback:
+  // static const LatLng _defaultCenter = LatLng(17.6157, 121.7244);
+  late LatLng _currentMarker;
 
   // ignore: unused_field
   XFile? _pickedImage;
@@ -303,18 +330,21 @@ class _ProfileContentState extends State<ProfileContent> {
 
   bool isEditingShopName = false;
   bool isEditingContactNumber = false;
+  bool isEditingAddress = false; // ← new
 
   bool isLoading = true;
   bool isSaving = false;
 
   late TextEditingController shopNameController;
   late TextEditingController contactNumberController;
+  late TextEditingController addressController; // ← new
 
   @override
   void initState() {
     super.initState();
     shopNameController = TextEditingController();
     contactNumberController = TextEditingController();
+    addressController         = TextEditingController(); // ← new
     _loadProfile();
   }
 
@@ -322,6 +352,7 @@ class _ProfileContentState extends State<ProfileContent> {
   void dispose() {
     shopNameController.dispose();
     contactNumberController.dispose();
+     addressController.dispose(); // ← new
     super.dispose();
   }
 
@@ -334,18 +365,34 @@ class _ProfileContentState extends State<ProfileContent> {
       'Authorization': 'Bearer $token',
       'Accept': 'application/json',
     });
-    // DEBUG only
+
     if (kDebugMode) {
       debugPrint('[_loadProfile] ${res.statusCode} → ${res.body}');
     }
     if (res.statusCode == 200) {
-      final body = jsonDecode(res.body);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+
       setState(() {
-        shopName = body['shop_name'] ?? '';
-        contactNumber = body['contact_number'] ?? '';
-        photoPath     = body['shop_photo'];       // <-- new
-        shopNameController.text = shopName;
+        shopName        = body['shop_name']      ?? '';
+        contactNumber   = body['contact_number'] ?? '';
+        address         = body['address']        ?? '';
+        latitude        = (body['latitude'] as num?)?.toDouble();
+        longitude       = (body['longitude'] as num?)?.toDouble();
+        photoPath       = body['shop_photo'];
+
+        // Populate controllers:
+        shopNameController.text      = shopName;
         contactNumberController.text = contactNumber;
+        addressController.text       = address;
+
+        // Initialize the map marker:
+        if (latitude != null && longitude != null) {
+          _currentMarker = LatLng(latitude!, longitude!);
+        } else {
+          // If no saved coords, default to Carig Sur center
+          _currentMarker = _allowedCenter;
+        }
+
         isLoading = false;
       });
     } else {
@@ -359,7 +406,19 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 }
 
+
+
+
   Future<void> _saveProfile() async {
+  // **Client-side check for “Carig Sur”**:
+  final addrText = addressController.text.trim();
+  if (!addrText.toLowerCase().contains('carig sur')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Address must be located in Carig Sur.')),
+    );
+    return;
+  }
+
   setState(() => isSaving = true);
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -372,25 +431,39 @@ class _ProfileContentState extends State<ProfileContent> {
         'Accept': 'application/json',
       },
       body: jsonEncode({
-        'shop_name': shopNameController.text,
-        'contact_number': contactNumberController.text,
+        'shop_name'      : shopNameController.text.trim(),
+        'contact_number' : contactNumberController.text.trim(),
+        'address'        : addressController.text.trim(),
+        'latitude'       : latitude,   // ← now updated when tapping map
+        'longitude'      : longitude,  // ← now updated when tapping map
       }),
     );
+
     if (res.statusCode == 200) {
-      // update local state
+      // **Success → update local state**
       setState(() {
-        shopName = shopNameController.text;
-        contactNumber = contactNumberController.text;
-        isEditingShopName = false;
-        isEditingContactNumber = false;
+        shopName        = shopNameController.text.trim();
+        contactNumber   = contactNumberController.text.trim();
+        address         = addressController.text.trim();
+        isEditingShopName       = false;
+        isEditingContactNumber  = false;
+        isEditingAddress        = false; // ← new
         isSaving = false;
       });
-      // ← Persist the new shop name
-      await prefs.setString('shop_name', shopNameController.text);
+      // Persist new shop name if needed
+      await prefs.setString('shop_name', shopNameController.text.trim());
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
+    } else if (res.statusCode == 422) {
+      // **Validation errors from backend**
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final firstError = (body['errors'] as Map<String, dynamic>)
+          .values
+          .cast<List<dynamic>>()
+          .first[0] as String;
+      throw Exception(firstError);
     } else {
       throw Exception('Status ${res.statusCode}');
     }
@@ -401,6 +474,7 @@ class _ProfileContentState extends State<ProfileContent> {
     );
   }
 }
+
 
 Future<void> _onEditPhoto() async {
   final picker = ImagePicker();
@@ -577,7 +651,126 @@ Future<void> _onEditPhoto() async {
                   ),
 
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 0),
+
+                  // **Address field (NEW)**
+                    _buildEditableField(
+  label: 'Address',
+  value: address,
+  isEditing: isEditingAddress,
+  controller: addressController,
+  fontSize: fontSize,
+  onSave: () => setState(() => isEditingAddress = false),
+  onEdit: () {
+    addressController.text = address;
+    setState(() => isEditingAddress = true);
+  },
+),
+
+                    const SizedBox(height: 20),
+
+                    // Only show the map when the user is actively editing the address:
+if (isEditingAddress) ...[
+  const SizedBox(height: 12),
+
+  // Container for the FlutterMap:
+  SizedBox(
+    height: h(200),
+    child: FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: _currentMarker,
+        initialZoom: 15.0,
+        // Only allow tap if within Carig Sur
+        onTap: (tapPosition, point) async {
+  // 1) Check if tapped point is within your Carig Sur radius
+  if (!_isWithinRadius(_allowedCenter, point, _allowedRadiusKm)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Location must be within 10 km of Carig Sur, Tuguegarao City.',
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return; // stop here if outside radius
+  }
+
+  // 2) Move the pin
+  setState(() {
+    _currentMarker = point;
+  });
+  _mapController.move(point, 15.0);
+
+  // 3) Reverse-geocode (to fill the text field), but do NOT reject it if the string
+  //    doesn’t literally say “Carig Sur.”
+  try {
+    final placemarks = await placemarkFromCoordinates(
+      point.latitude,
+      point.longitude,
+    );
+    if (placemarks.isNotEmpty) {
+      final pm = placemarks.first;
+      final newAddr = [
+        if (pm.street != null && pm.street!.isNotEmpty) pm.street,
+        if (pm.subLocality != null && pm.subLocality!.isNotEmpty)
+          pm.subLocality,
+        if (pm.locality != null && pm.locality!.isNotEmpty)
+          pm.locality,
+        if (pm.administrativeArea != null && pm.administrativeArea!.isNotEmpty)
+          pm.administrativeArea,
+        if (pm.postalCode != null && pm.postalCode!.isNotEmpty)
+          pm.postalCode,
+        if (pm.country != null && pm.country!.isNotEmpty) pm.country,
+      ].where((s) => s != null && s.isNotEmpty).join(', ');
+
+      // 4) Update the address field + state unconditionally (since we already
+      //    know the pin is within radius). Do NOT re-check “.contains('carig sur')”.
+      setState(() {
+        addressController.text = newAddr;
+        address = newAddr;
+        latitude = point.latitude;
+        longitude = point.longitude;
+      });
+    }
+  } catch (err) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error reverse-geocoding: $err'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+},
+      ),
+      children: [
+        // 5.1) Tile layer (OpenStreetMap)
+        TileLayer(
+          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          subdomains: const ['a', 'b', 'c'],
+        ),
+
+        // 5.2) Marker layer (our pin)
+        MarkerLayer(
+          markers: [
+            Marker(
+              width: 40,
+              height: 40,
+              point: _currentMarker,
+              child: const Icon(
+                Icons.location_pin,
+                color: Colors.red,
+                size: 40,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+
+  const SizedBox(height: 16),
+],
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
