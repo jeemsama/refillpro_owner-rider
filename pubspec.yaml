@@ -83,6 +83,8 @@ flutter:
     - images/store_tag1.png
     - images/customer_tag1.png
     - assets/icon/logo.png
+    - assets/images/regular.png
+    - assets/images/dispenser.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

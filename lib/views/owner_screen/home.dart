@@ -1245,7 +1245,7 @@ Widget _buildBorrowPriceRow(double totalWidth) {
                   ),
                 ),
                 TextSpan(
-                  text: '₱${_borrowGallonPriceController.text}',
+                  text: _borrowGallonPriceController.text,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 15,
