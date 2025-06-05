@@ -26,6 +26,7 @@ class OwnerOrder {
   final double total;
   final double? latitude, longitude;
   final DateTime createdAt;
+  final String? declineReason;
 
   OwnerOrder({
     required this.id,
@@ -42,6 +43,7 @@ class OwnerOrder {
     required this.createdAt,
     this.latitude,
     this.longitude,
+    this.declineReason,
   });
 
   factory OwnerOrder.fromJson(Map<String, dynamic> j) {
@@ -51,6 +53,7 @@ class OwnerOrder {
     final createdAtUtc = raw.endsWith('Z')
         ? DateTime.parse(raw)
         : DateTime.parse('${raw}Z');
+        
 
     return OwnerOrder(
       id: j['id'] as int,
@@ -71,6 +74,10 @@ class OwnerOrder {
           ? double.tryParse(j['longitude'].toString())
           : null,
       createdAt: createdAtUtc,
+      declineReason: j['cancel_reason_owner'] as String?,
+      
+
+      
     );
   }
 }
@@ -250,9 +257,9 @@ class _OrdersContentState extends State<OrdersContent>
     _cancellationTimers.clear();
 
     final nowUtc = DateTime.now().toUtc();
-    // final twoHours = const Duration(hours: 2);
+    final twoHours = const Duration(hours: 2);
     final List<int> immediateCancelIds = [];
-    final seconds = const Duration(seconds: 30);
+    // final seconds = const Duration(seconds: 30);
 
     for (final o in orders) {
       if (o.status.toLowerCase() != 'pending') continue;
@@ -261,12 +268,12 @@ class _OrdersContentState extends State<OrdersContent>
       final createdUtc = o.createdAt.isUtc ? o.createdAt : o.createdAt.toUtc();
       final diff = nowUtc.difference(createdUtc);
 
-      if (diff >= seconds) {
+      if (diff >= twoHours) {
         immediateCancelIds.add(o.id);
         continue;
       }
 
-      final expireAtUtc = createdUtc.add(seconds).add(const Duration(seconds: 1));
+      final expireAtUtc = createdUtc.add(twoHours).add(const Duration(seconds: 1));
       final remaining = expireAtUtc.difference(nowUtc);
       if (remaining.inMilliseconds > 0) {
         final timer = Timer(remaining, () async {

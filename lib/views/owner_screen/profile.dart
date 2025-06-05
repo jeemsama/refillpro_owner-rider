@@ -412,7 +412,7 @@ bool _isWithinRadius(LatLng center, LatLng point, double radiusKm) {
   Future<void> _saveProfile() async {
   // **Client-side check for “Carig Sur”**:
   final addrText = addressController.text.trim();
-  if (!addrText.toLowerCase().contains('carig sur')) {
+  if (!addrText.toLowerCase().contains('carig')) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Address must be located in Carig Sur.')),
     );

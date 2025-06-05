@@ -69,7 +69,7 @@ class _AddRiderState extends State<AddRider> {
     final token = await _getToken();
     if (token == null) return;
 
-    final url = Uri.parse('http://192.168.1.22/api/v1/riders');
+    final url = Uri.parse('http://192.168.1.22:8000/api/v1/riders');
     try {
       final response = await http
           .get(
@@ -238,10 +238,14 @@ class _AddRiderState extends State<AddRider> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Add Rider'),
+        backgroundColor: const Color(0xFF1F2937),
+        title: const Text(
+          'Add Rider',
+          style: TextStyle(color: Colors.white),
+        ),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed:
               () => Navigator.pushReplacement(
                 context,
@@ -438,7 +442,7 @@ class _AddRiderState extends State<AddRider> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Riders',
+          'My Riders',
           style: TextStyle(
             color: Color(0xFF1F2937),
             fontSize: 24,
