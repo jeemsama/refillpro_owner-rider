@@ -5,7 +5,6 @@ import 'package:refillpro_owner_rider/views/header.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/maps.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/orders.dart';
 import 'package:refillpro_owner_rider/views/owner_screen/profile.dart';
-// import 'package:refillpro_owner_rider/views/compact_delivery_details_widget.dart'; 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,21 +12,19 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
-
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
   int _selectedIndex = 0;
+  int _pendingOrderCount = 0;
 
-  // All your tab screens here
-  final List<Widget> _screens = const [
-    HomeContent(),   // Extracted content
-    MapsContent(),
-    OrdersContent(),
-    Profile(),       // Use your Profile widget
-  ];
+  // ① Keep a GlobalKey for OrdersContentState, so we can call loadOrders() even when off‐screen
+  final GlobalKey<OrdersContentState> _ordersKey =
+      GlobalKey<OrdersContentState>();
+  final GlobalKey<HomeContentState> _homeKey = GlobalKey<HomeContentState>();
+  final GlobalKey<MapsContentState> _mapsKey = GlobalKey<MapsContentState>();
 
   void _onItemTapped(int index) {
     setState(() {
@@ -35,22 +32,51 @@ class _HomeState extends State<Home> {
     });
   }
 
+
+  // ② Whenever we pull down, reload Home, Maps, AND Orders.
+  Future<void> _refreshAll() async {
+    // 1) Reload Home stats (if you have such a method)
+    if (_homeKey.currentState != null) {
+      await _homeKey.currentState!.loadStatsForCurrentYear();
+    }
+    // 2) Reload Maps (if you have such a method)
+    if (_mapsKey.currentState != null) {
+      await _mapsKey.currentState!.loadAll();
+    }
+    // 3) Force Orders to re-fetch from the server and update the badge
+    if (_ordersKey.currentState != null) {
+      await _ordersKey.currentState!.loadOrders();
+      // As soon as loadOrders() completes, it will call widget.onNotificationCount(...)
+    }
+  }
+
+  // ③ Build the four “tabs,” each with its GlobalKey. Orders gets a callback:
+  List<Widget> get _screens => [
+        HomeContent(key: _homeKey),
+        MapsContent(key: _mapsKey),
+        OrdersContent(
+          key: _ordersKey, // ← give OrdersContent the same key every time
+          onNotificationCount: (count) {
+            if (!mounted) return;
+            setState(() {
+              _pendingOrderCount = count;
+            });
+          },
+        ),
+        const Profile(),
+      ];
+
   @override
   Widget build(BuildContext context) {
-    // Don’t show AppHeader on Profile tab (index 3)
     final bool showHeader = _selectedIndex != 3;
-    // Don’t show bottom navbar on Profile tab (index 3)
     final bool showNavbar = _selectedIndex != 3;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1EFEC),
       body: Stack(
         children: [
-          // 1) The global AppHeader (positioned at the very top)
           if (showHeader)
             const Positioned(top: 50, left: 0, right: 0, child: AppHeader()),
-
-          // 2) The main content (HomeContent, MapsContent, etc.)
           Positioned(
             top: showHeader ? 83 : 0,
             left: 0,
@@ -60,16 +86,30 @@ class _HomeState extends State<Home> {
               top: !showHeader,
               child: Stack(
                 children: [
-                  // 2a) The selected screen’s content
+                  // ④ Wrap the visible screen in a RefreshIndicator:
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
                     bottom: showNavbar ? 70 : 0,
-                    child: _screens[_selectedIndex],
+                    child: RefreshIndicator(
+                      onRefresh: _refreshAll,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          // This height ensures there’s always enough content to pull
+                          height: MediaQuery.of(context).size.height -
+                              (showHeader ? 83 : 0) -
+                              (showNavbar ? 70 : 0),
+                          child: IndexedStack(
+                            index: _selectedIndex,
+                            children: _screens,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
 
-                  // 2b) Bottom nav bar
                   if (showNavbar)
                     Positioned(
                       left: 0,
@@ -78,6 +118,7 @@ class _HomeState extends State<Home> {
                       child: CustomBottomNavBar(
                         selectedIndex: _selectedIndex,
                         onItemTapped: _onItemTapped,
+                        notificationCount: _pendingOrderCount,
                       ),
                     ),
                 ],
@@ -90,10 +131,11 @@ class _HomeState extends State<Home> {
   }
 }
 
-// Shop Status Button remains the same as before
+
+
+// Shop Status Button (unchanged)
 class ShopStatusButton extends StatefulWidget {
   const ShopStatusButton({super.key});
-
   @override
   State<ShopStatusButton> createState() => _ShopStatusButtonState();
 }
@@ -147,37 +189,18 @@ class _ShopStatusButtonState extends State<ShopStatusButton> {
   }
 }
 
-// Fetch the shop name from your API (unchanged)
-// Future<String> _fetchShopName() async {
-//   final prefs = await SharedPreferences.getInstance();
-//   final token = prefs.getString('auth_token') ?? '';
-//   final res = await http.get(
-//     Uri.parse('http://192.168.1.22:8000/api/owner/profile'),
-//     headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-//   );
-//   if (res.statusCode == 200) {
-//     final body = jsonDecode(res.body);
-//     return body['shop_name'] as String;
-//   } else {
-//     throw Exception('Failed to load shop name');
-//   }
-// }
-
-
 // ───────────────────────────────────────────────────────────────────────
-// Here’s the modified HomeContent:
+// HomeContent (with a public `loadStatsForCurrentYear()` for pull-to-refresh)
 // ───────────────────────────────────────────────────────────────────────
-
 
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
   @override
-  State<HomeContent> createState() => _HomeContentState();
+  State<HomeContent> createState() => HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> {
-  // 1) Year selection
+class HomeContentState extends State<HomeContent> {
   int selectedYear = DateTime.now().year;
   final List<int> availableYears = [
     DateTime.now().year - 2,
@@ -185,15 +208,20 @@ class _HomeContentState extends State<HomeContent> {
     DateTime.now().year,
   ];
 
-  // 2) State for stats data
   bool isLoading = false;
   String? errorMessage;
+  // ignore: library_private_types_in_public_api
   List<_MonthlyStat> monthlyStats = [];
 
   @override
   void initState() {
     super.initState();
     _loadStatsForYear(selectedYear);
+  }
+
+  /// Public method called by Home to refresh this screen’s data.
+  Future<void> loadStatsForCurrentYear() async {
+    await _loadStatsForYear(selectedYear);
   }
 
   Future<void> _loadStatsForYear(int year) async {
@@ -219,14 +247,13 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
-    // 1) Screen dimensions & scaling
     final screenWidth = MediaQuery.of(context).size.width;
     final widthScaleFactor = screenWidth / 401;
     double w(double v) => v * widthScaleFactor;
     double h(double v) => v * widthScaleFactor;
     double fontSize(double v) => v * widthScaleFactor;
 
-    // 2) Filter out any months where orders == 0
+    // Only show months with orders > 0
     final List<_MonthlyStat> nonZeroMonths =
         monthlyStats.where((stat) => stat.orders > 0).toList();
 
@@ -236,7 +263,7 @@ class _HomeContentState extends State<HomeContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── 1) FIXED HEADER ROW ───────────────────────────────────────
+          // ─── 1) HEADER ROW ─────────────────────────────────────────
           Padding(
             padding: EdgeInsets.only(left: w(20), right: w(20), top: h(10)),
             child: Row(
@@ -396,7 +423,6 @@ class _HomeContentState extends State<HomeContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Show loading spinner or error if needed
                   if (isLoading)
                     Center(child: CircularProgressIndicator())
                   else if (errorMessage != null)
@@ -409,7 +435,7 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     )
                   else ...[
-                    // ─── A & B) TWO CHARTS IN A ROW ─────────────────────────
+                    // ─── A & B) TWO CHARTS IN A ROW ──────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -419,7 +445,7 @@ class _HomeContentState extends State<HomeContent> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Your Monthly Earnings ($selectedYear)',
+                                'Your Monthly Earnings',
                                 style: TextStyle(
                                   fontSize: fontSize(13),
                                   fontWeight: FontWeight.w700,
@@ -459,13 +485,14 @@ class _HomeContentState extends State<HomeContent> {
                                       right: w(10),
                                     ),
                                     primaryXAxis: CategoryAxis(
-                                      labelStyle: TextStyle(fontSize: fontSize(10)),
+                                      labelStyle:
+                                          TextStyle(fontSize: fontSize(10)),
                                       majorGridLines:
                                           const MajorGridLines(width: 0),
                                     ),
                                     primaryYAxis: NumericAxis(
                                       labelFormat: '₱{value}',
-                                      interval: 1000, // adjust to your data
+                                      interval: 1000,
                                       axisLine: const AxisLine(width: 0),
                                       majorTickLines:
                                           const MajorTickLines(size: 0),
@@ -512,7 +539,7 @@ class _HomeContentState extends State<HomeContent> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Your Monthly Orders ($selectedYear)',
+                                'Your Monthly Orders',
                                 style: TextStyle(
                                   fontSize: fontSize(13),
                                   fontWeight: FontWeight.w700,
@@ -597,7 +624,6 @@ class _HomeContentState extends State<HomeContent> {
                       ],
                     ),
 
-
                     SizedBox(height: h(24)),
 
                     // ─── C) EXTRA CONTENT ────────────────────────────────────
@@ -613,13 +639,19 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  /// Fetch the authenticated owner’s shop name.
+
+
+
+
+
+
+
+  // Fetch the authenticated owner’s shop name
   Future<String> _fetchShopName() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final res = await http.get(
-      Uri.parse('http://192.168.1.22:8000/api/owner/profile'),
+      Uri.parse('http://192.168.1.36:8000/api/owner/profile'),
       headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     );
     if (res.statusCode == 200) {
@@ -630,13 +662,13 @@ class _HomeContentState extends State<HomeContent> {
     }
   }
 
-  /// Call Laravel endpoint `/api/owner/stats?year=$year` and parse the result.
+  // Call Laravel endpoint `/api/owner/stats?year=$year`
   Future<List<_MonthlyStat>> _fetchStatsFromApi(int year) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
 
     final url =
-        Uri.parse('http://192.168.1.22:8000/api/owner/stats?year=$year');
+        Uri.parse('http://192.168.1.36:8000/api/owner/stats?year=$year');
     final res = await http.get(
       url,
       headers: {
@@ -650,8 +682,6 @@ class _HomeContentState extends State<HomeContent> {
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    debugPrint('DEBUG raw stats JSON: ${jsonEncode(data)}');
-
     final monthsMap = data['monthly'] as Map<String, dynamic>;
 
     List<_MonthlyStat> list = [];
@@ -666,18 +696,12 @@ class _HomeContentState extends State<HomeContent> {
         list.add(_MonthlyStat(_monthName(m), 0.0, 0));
       }
     }
-
-    debugPrint('DEBUG parsed monthlyStats list:');
-    for (var stat in list) {
-      debugPrint('  ${stat.month}: earnings=${stat.earnings}, orders=${stat.orders}');
-    }
-
     return list;
   }
 
   String _monthName(int m) {
     const names = <String>[
-      '', // dummy index 0
+      '',
       'Jan',
       'Feb',
       'Mar',
@@ -694,6 +718,8 @@ class _HomeContentState extends State<HomeContent> {
     return names[m];
   }
 }
+
+
 
 class EnlargePieChartPage extends StatelessWidget {
   // ignore: library_private_types_in_public_api
@@ -833,14 +859,17 @@ class EnlargeBarChartPage extends StatelessWidget {
   }
 }
 
-/// Simple data‐model for month, earnings, and orders.
+
+
+// Simple data‐model for month, earnings, and orders
 class _MonthlyStat {
-  final String month;     // e.g. 'Jan', 'Feb', … 'Dec'
-  final double earnings;  // e.g. 12000.0
-  final int orders;       // e.g. 20
+  final String month;
+  final double earnings;
+  final int orders;
   _MonthlyStat(this.month, this.earnings, this.orders);
 }
 
+// “Edit details” widget (unchanged appearance)
 class CompactDeliveryDetailsWidget extends StatefulWidget {
   const CompactDeliveryDetailsWidget({super.key});
 
@@ -880,19 +909,17 @@ class _CompactDeliveryDetailsWidgetState
   ];
   final Set<String> _selectedDays = {};
 
-  // State for gallon prices - fixed product types with editable prices
+  // State for gallon prices
   final TextEditingController _regularGallonPriceController =
       TextEditingController(text: '₱50.00');
   final TextEditingController _dispenserGallonPriceController =
       TextEditingController(text: '₱50.00');
-    //  ➤ NEW: Controller for “Borrow gallon” price:
   final TextEditingController _borrowGallonPriceController =
       TextEditingController(text: '₱0.00');
 
   @override
   void initState() {
     super.initState();
-    // Fetch existing shop details when component loads
     _fetchShopDetails();
   }
 
@@ -907,16 +934,11 @@ class _CompactDeliveryDetailsWidgetState
   Future<void> _fetchShopDetails() async {
     setState(() => _isLoading = true);
     try {
-      // Get auth token
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
+      if (token == null) throw Exception('Authentication token not found');
 
-      if (token == null) {
-        throw Exception('Authentication token not found');
-      }
-
-      // Request shop details from backend
-      final url = Uri.parse('http://192.168.1.22:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.36:8000/api/owner/shop-details');
       final response = await http
           .get(
             url,
@@ -931,9 +953,7 @@ class _CompactDeliveryDetailsWidgetState
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final shopDetails = data['data'] as Map<String, dynamic>? ?? {};
 
-        // Update UI with fetched data
         setState(() {
-          // Update delivery time slots
           final timeSlots =
               shopDetails['delivery_time_slots'] as List<dynamic>? ?? [];
           _selectedTimes.clear();
@@ -941,7 +961,6 @@ class _CompactDeliveryDetailsWidgetState
             _selectedTimes.add(time.toString());
           }
 
-          // Update collection days
           final collectionDays =
               shopDetails['collection_days'] as List<dynamic>? ?? [];
           _selectedDays.clear();
@@ -949,7 +968,6 @@ class _CompactDeliveryDetailsWidgetState
             _selectedDays.add(day.toString());
           }
 
-          // Only update prices for the two fixed product types
           final regularPrice = shopDetails['regular_gallon_price'];
           if (regularPrice != null) {
             _regularGallonPriceController.text = '₱${regularPrice.toString()}';
@@ -960,380 +978,359 @@ class _CompactDeliveryDetailsWidgetState
             _dispenserGallonPriceController.text =
                 '₱${dispenserPrice.toString()}';
           }
-          //  ➤ NEW: Update borrow gallon price
+
           final borrowPrice = shopDetails['borrow_price'];
           if (borrowPrice != null) {
             _borrowGallonPriceController.text = '₱${borrowPrice.toString()}';
           }
         });
       } else {
-        // If 404 or other error, we'll initialize with defaults (already done in constructor)
+        // If 404 or another error, just keep defaults
         debugPrint('Failed to fetch shop details: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error fetching shop details: $e');
-      // Don't show error to user - just use defaults
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   @override
-Widget build(BuildContext context) {
-  // Get screen dimensions
-  final screenSize = MediaQuery.of(context).size;
-  final screenWidth = screenSize.width;
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final widthScaleFactor = screenWidth / 401;
+    double w(double value) => value * widthScaleFactor;
+    double h(double value) => value * widthScaleFactor;
+    double fontSize(double value) => value * widthScaleFactor;
 
-  // Calculate scale factor based on design width (401)
-  final widthScaleFactor = screenWidth / 401;
-
-  // Function to scale dimensions
-  double w(double value) => value * widthScaleFactor;
-  double h(double value) => value * widthScaleFactor;
-
-  // Function to scale text
-  double fontSize(double value) => value * widthScaleFactor;
-
-  return Container(
-    width: screenWidth - w(40),
-    decoration: ShapeDecoration(
-      color: const Color(0xffF1EFEC),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    ),
-    child: Padding(
-      padding: EdgeInsets.symmetric(horizontal: w(15), vertical: h(15)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ─── Edit details header ───────────────────────────────────────
-          Text(
-            'Edit details',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: fontSize(18),
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
+    return Container(
+      width: screenWidth - w(40),
+      decoration: ShapeDecoration(
+        color: const Color(0xffF1EFEC),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: w(15), vertical: h(15)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ─── Edit details header ───────────────────────────────────────
+            Text(
+              'Edit details',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: fontSize(18),
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
 
-          SizedBox(height: h(12)),
+            SizedBox(height: h(12)),
 
-          // ─── Preferred delivery time section ─────────────────────────
-          Text(
-            'Preferred delivery time',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: fontSize(16),
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
+            // ─── Preferred delivery time section ─────────────────────────
+            Text(
+              'Preferred delivery time',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: fontSize(16),
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
 
-          SizedBox(height: h(8)),
+            SizedBox(height: h(8)),
 
-          // Delivery time buttons in a wrapped layout
-          Wrap(
-            spacing: w(6),
-            runSpacing: h(8),
-            children: _deliveryTimes.map((time) {
-              final isSelected = _selectedTimes.contains(time);
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedTimes.remove(time);
-                    } else {
-                      _selectedTimes.add(time);
-                    }
-                  });
-                },
-                child: Container(
-                  width: w(60),
-                  height: h(28),
-                  decoration: ShapeDecoration(
-                    color: isSelected
-                        ? const Color(0xFF5CB338)
-                        : const Color(0xFF1F2937),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: isSelected
-                          ? const BorderSide(color: Colors.blue, width: 2.0)
-                          : BorderSide.none,
+            Wrap(
+              spacing: w(6),
+              runSpacing: h(8),
+              children: _deliveryTimes.map((time) {
+                final isSelected = _selectedTimes.contains(time);
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedTimes.remove(time);
+                      } else {
+                        _selectedTimes.add(time);
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: w(60),
+                    height: h(28),
+                    decoration: ShapeDecoration(
+                      color: isSelected
+                          ? const Color(0xFF5CB338)
+                          : const Color(0xFF1F2937),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: isSelected
+                            ? const BorderSide(color: Colors.blue, width: 2.0)
+                            : BorderSide.none,
+                      ),
                     ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      time,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: fontSize(12),
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
+                    child: Center(
+                      child: Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize(12),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-
-          SizedBox(height: h(12)),
-
-          // ─── Collection day section ───────────────────────────────────
-          Text(
-            'Collection day',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: fontSize(16),
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
+                );
+              }).toList(),
             ),
-          ),
 
-          SizedBox(height: h(5)),
+            SizedBox(height: h(12)),
 
-          // Collection day selection – compact row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _collectionDays.map((day) {
-              final isSelected = _selectedDays.contains(day);
-              return Column(
-                children: [
-                  Container(
-                    width: w(18),
-                    height: h(18),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF1F2937) : Colors.white,
-                      border: Border.all(color: const Color(0xFF1F2937), width: 1.5),
+            // ─── Collection day section ───────────────────────────────────
+            Text(
+              'Collection day',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: fontSize(16),
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            SizedBox(height: h(5)),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _collectionDays.map((day) {
+                final isSelected = _selectedDays.contains(day);
+                return Column(
+                  children: [
+                    Container(
+                      width: w(18),
+                      height: h(18),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected ? const Color(0xFF1F2937) : Colors.white,
+                        border: Border.all(
+                            color: const Color(0xFF1F2937), width: 1.5),
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedDays.remove(day);
+                            } else {
+                              _selectedDays.add(day);
+                            }
+                          });
+                        },
+                      ),
                     ),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedDays.remove(day);
-                          } else {
-                            _selectedDays.add(day);
-                          }
-                        });
+                    SizedBox(height: h(2)),
+                    Text(
+                      day,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: fontSize(10),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+
+            SizedBox(height: h(15)),
+
+            // ─── Borrow gallon row ───────────────────────────────────────
+            _buildBorrowPriceRow(screenWidth - w(40)),
+
+            SizedBox(height: h(15)),
+
+            // ─── Regular & Dispenser gallon row ─────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildGallonItem(
+                  'images/regular.png',
+                  _regularGallonPriceController,
+                  (screenWidth - w(40)) / 2 - w(10),
+                ),
+                _buildGallonItem(
+                  'images/dispenser.png',
+                  _dispenserGallonPriceController,
+                  (screenWidth - w(40)) / 2 - w(10),
+                ),
+              ],
+            ),
+
+            SizedBox(height: h(15)),
+
+            // ─── Save button ─────────────────────────────────────────────
+            Center(
+              child: ElevatedButton(
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        await _saveDetails();
                       },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F2937),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(w(10)),
+                  ),
+                  minimumSize: Size(w(96), h(36)),
+                  elevation: 2,
+                  disabledBackgroundColor: Colors.grey,
+                ),
+                child: _isLoading
+                    ? SizedBox(
+                        width: w(20),
+                        height: h(20),
+                        child: const CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 2.0,
+                        ),
+                      )
+                    : Text(
+                        'Save',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize(14),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper for “Borrow gallon (₱0): [ TextField ]” row
+  Widget _buildBorrowPriceRow(double totalWidth) {
+    const double rowHeight = 36;
+    const double horizontalPadding = 16;
+
+    return Container(
+      width: totalWidth,
+      height: rowHeight,
+      decoration: ShapeDecoration(
+        color: const Color(0xFF1F2937),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        shadows: const [
+          BoxShadow(
+            color: Color(0x3F000000),
+            blurRadius: 4,
+            offset: Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: horizontalPadding),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Borrow gallon (',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  SizedBox(height: h(2)),
-                  Text(
-                    day,
+                  TextSpan(
+                    text: _borrowGallonPriceController.text,
                     style: TextStyle(
-                      color: Colors.black,
-                      fontSize: fontSize(10),
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '):',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontFamily: 'Poppins',
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
-              );
-            }).toList(),
-          ),
-
-          SizedBox(height: h(15)),
-
-          // ─── Borrow gallon row ───────────────────────────────────────
-          _buildBorrowPriceRow(screenWidth - w(40)),
-
-          SizedBox(height: h(15)),
-
-          // ─── Regular & Dispenser gallon row ─────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Regular gallon (fixed product)
-              _buildGallonItem(
-                'images/regular.png',
-                _regularGallonPriceController,
-                (screenWidth - w(40)) / 2 - w(10),
               ),
-
-              // Dispenser gallon (fixed product)
-              _buildGallonItem(
-                'images/dispenser.png',
-                _dispenserGallonPriceController,
-                (screenWidth - w(40)) / 2 - w(10),
-              ),
-            ],
+            ),
           ),
-
-          SizedBox(height: h(15)),
-
-          // ─── Save button ─────────────────────────────────────────────
-          Center(
-            child: ElevatedButton(
-              onPressed: _isLoading
-                  ? null
-                  : () async {
-                      await _saveDetails();
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1F2937),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(right: horizontalPadding),
+            child: Container(
+              width: 131,
+              height: 26,
+              decoration: ShapeDecoration(
+                color: const Color(0xFFD9D9D9),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(w(10)),
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                minimumSize: Size(w(96), h(36)),
-                elevation: 2,
-                disabledBackgroundColor: Colors.grey,
               ),
-              child: _isLoading
-                  ? SizedBox(
-                      width: w(20),
-                      height: h(20),
-                      child: const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2.0,
-                      ),
-                    )
-                  : Text(
-                      'Save',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: fontSize(14),
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w500,
-                      ),
+              child: Center(
+                child: TextField(
+                  controller: _borrowGallonPriceController,
+                  textAlign: TextAlign.end,
+                  decoration: const InputDecoration(
+                    hintText: 'Type your price here',
+                    hintStyle: TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                      fontFamily: 'Roboto',
+                      fontWeight: FontWeight.w800,
+                      height: 2,
                     ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// Helper method to build the “Borrow gallon (₱0): [ TextField ]” row
-Widget _buildBorrowPriceRow(double totalWidth) {
-  const double rowHeight = 36;
-  const double horizontalPadding = 16;
-
-  return Container(
-    width: totalWidth,
-    height: rowHeight,
-    decoration: ShapeDecoration(
-      color: const Color(0xFF1F2937),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      shadows: const [
-        BoxShadow(
-          color: Color(0x3F000000),
-          blurRadius: 4,
-          offset: Offset(0, 4),
-          spreadRadius: 0,
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        // Left label: "Borrow gallon (₱0):"
-        Padding(
-          padding: const EdgeInsets.only(left: horizontalPadding),
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Borrow gallon (',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w500,
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
-                TextSpan(
-                  text: _borrowGallonPriceController.text,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                TextSpan(
-                  text: '):',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Spacer pushes the right-side text field to the end
-        const Spacer(),
-
-        // Right-side text field container
-        Padding(
-          padding: const EdgeInsets.only(right: horizontalPadding),
-          child: Container(
-            width: 131,
-            height: 26,
-            decoration: ShapeDecoration(
-              color: const Color(0xFFD9D9D9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-            child: Center(
-              child: TextField(
-                controller: _borrowGallonPriceController,
-                textAlign: TextAlign.end,
-                decoration: const InputDecoration(
-                  hintText: 'Type your price here',
-                  hintStyle: TextStyle(
+                  style: const TextStyle(
                     color: Colors.black,
                     fontSize: 15,
                     fontFamily: 'Roboto',
                     fontWeight: FontWeight.w800,
                     height: 2,
                   ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
                 ),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 15,
-                  fontFamily: 'Roboto',
-                  fontWeight: FontWeight.w800,
-                  height: 2,
-                ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-
+        ],
+      ),
+    );
+  }
 
   Widget _buildGallonItem(
     String imagePath,
     TextEditingController controller,
     double width,
   ) {
-    // Get scale factors for responsive sizing
     final screenWidth = MediaQuery.of(context).size.width;
     final widthScaleFactor = screenWidth / 401;
-
-    // Scale functions
     double h(double value) => value * widthScaleFactor;
     double fontSize(double value) => value * widthScaleFactor;
 
     return Container(
-      width: 150 * widthScaleFactor, // Scale width based on design
-      height: h(180), // Reduced height to make it more compact
+      width: 150 * widthScaleFactor,
+      height: h(180),
       decoration: ShapeDecoration(
         color: const Color(0xFF1F2937),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -1341,14 +1338,11 @@ Widget _buildBorrowPriceRow(double totalWidth) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Image container
           Container(
             padding: EdgeInsets.only(top: h(10)),
             height: h(135),
             child: Image.asset(imagePath, fit: BoxFit.contain),
           ),
-
-          // Price input
           Padding(
             padding: EdgeInsets.only(bottom: h(10)),
             child: Container(
@@ -1386,7 +1380,6 @@ Widget _buildBorrowPriceRow(double totalWidth) {
   Future<void> _saveDetails() async {
     setState(() => _isLoading = true);
     try {
-      // Get auth token
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
 
@@ -1394,41 +1387,34 @@ Widget _buildBorrowPriceRow(double totalWidth) {
         throw Exception('Authentication token not found');
       }
 
-      // Format prices - strip currency symbol and convert to double
-      final regularPrice =
-          double.tryParse(
+      final regularPrice = double.tryParse(
             _regularGallonPriceController.text.replaceAll('₱', '').trim(),
           ) ??
           50.0;
 
-      final dispenserPrice =
-          double.tryParse(
+      final dispenserPrice = double.tryParse(
             _dispenserGallonPriceController.text.replaceAll('₱', '').trim(),
           ) ??
           50.0;
-          //  ➤ NEW: parse borrow price
-    final borrowPrice = double.tryParse(
-          _borrowGallonPriceController.text.replaceAll('₱', '').trim(),
-        ) ??
-        0.0;
 
-      // Create payload based on OwnerShopDetails model with fixed product types
+      final borrowPrice = double.tryParse(
+            _borrowGallonPriceController.text.replaceAll('₱', '').trim(),
+          ) ??
+          0.0;
+
       final payload = {
         'delivery_time_slots': _selectedTimes.toList(),
         'collection_days': _selectedDays.toList(),
-        'has_regular_gallon': true, // Always true - fixed product
+        'has_regular_gallon': true,
         'regular_gallon_price': regularPrice,
-        'has_dispenser_gallon': true, // Always true - fixed product
+        'has_dispenser_gallon': true,
         'dispenser_gallon_price': dispenserPrice,
-        'has_small_gallon': false, // Always false - product not offered
-        'small_gallon_price': 30.0, // Default value in case backend requires it
+        'has_small_gallon': false,
+        'small_gallon_price': 30.0,
         'borrow_price': borrowPrice,
       };
 
-      debugPrint('Sending shop details: $payload');
-
-      // Send to backend
-      final url = Uri.parse('http://192.168.1.22:8000/api/owner/shop-details');
+      final url = Uri.parse('http://192.168.1.36:8000/api/owner/shop-details');
       final response = await http
           .post(
             url,
@@ -1441,9 +1427,6 @@ Widget _buildBorrowPriceRow(double totalWidth) {
           )
           .timeout(const Duration(seconds: 10));
 
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1453,14 +1436,12 @@ Widget _buildBorrowPriceRow(double totalWidth) {
           ),
         );
       } else {
-        // Parse error message if available
         final responseData = jsonDecode(response.body) as Map<String, dynamic>;
         final errorMessage =
             responseData['message'] ?? 'Failed to save shop details';
         throw Exception(errorMessage);
       }
     } catch (e) {
-      debugPrint('Error saving shop details: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -1473,3 +1454,12 @@ Widget _buildBorrowPriceRow(double totalWidth) {
     }
   }
 }
+
+
+
+
+
+
+
+
+

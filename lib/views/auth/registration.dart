@@ -217,8 +217,8 @@ class _RegistrationState extends State<Registration> {
       return false;
     }
 
-    if (_phoneController.text.length != 11) {
-    showErrorSnackBar('Phone number must be exactly 11 digits');
+    if (_phoneController.text.length != 10) {
+    showErrorSnackBar('Phone number must be exactly 10 digits');
     return false;
   }
 
@@ -270,7 +270,7 @@ class _RegistrationState extends State<Registration> {
             ),
       );
 
-      final uri = Uri.parse('http://192.168.1.22:8000/api/v1/register-owner');
+      final uri = Uri.parse('http://192.168.1.36:8000/api/v1/register-owner');
       debugPrint('Sending request to: $uri');
 
       final request = http.MultipartRequest('POST', uri)
@@ -586,27 +586,29 @@ class _RegistrationState extends State<Registration> {
                               ),
                               SizedBox(width: 10 * widthScale),
                               Expanded(
-                                child: TextField(
-                                  controller: _phoneController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(11),
-                                  ],
-                                  decoration: InputDecoration(
-                                    hintText: '09XXXXXXXXX',
-                                    filled: true,
-                                    fillColor: const Color(0xFFD9D9D9),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 0,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide.none,
+                                  child: TextField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10), // only 10 digits after +63
+                                    ],
+                                    decoration: InputDecoration(
+                                      prefixText: '+63 ',
+                                      hintText: 'XXXXXXXXXX',
+                                      filled: true,
+                                      fillColor: const Color(0xFFD9D9D9),
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 0,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide.none,
+                                      ),
                                     ),
                                   ),
-                                ),
+
                               ),
                             ],
                           ),

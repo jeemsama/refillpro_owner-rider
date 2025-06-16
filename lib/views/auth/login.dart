@@ -63,7 +63,7 @@ Future<void> _handleLogin() async {
   setState(() => isLoading = true);
   try {
     // 1) Log in
-    final loginUrl = Uri.parse('http://192.168.1.22:8000/api/login');
+    final loginUrl = Uri.parse('http://192.168.1.36:8000/api/login');
     final loginResponse = await http
       .post(
         loginUrl,
@@ -105,7 +105,7 @@ Future<void> _handleLogin() async {
       }
 
       // 3) Fetch profile so we can extract shop_id from the nested object
-      final profileUrl = Uri.parse('http://192.168.1.22:8000/api/owner/profile');
+      final profileUrl = Uri.parse('http://192.168.1.36:8000/api/owner/profile');
       final profileResponse = await http.get(
         profileUrl,
         headers: {

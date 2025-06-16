@@ -6,17 +6,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:refillpro_owner_rider/views/owner_screen/maps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:refillpro_owner_rider/views/model/rider.dart';
-import 'package:refillpro_owner_rider/views/bottom_navbar.dart';
-import 'package:refillpro_owner_rider/views/header.dart';
-
-import 'maps.dart';
-import 'home.dart';
-import 'profile.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────
-/// UPDATE #1: Extend OwnerOrder to include `createdAt`
+/// `OwnerOrder` model (unchanged)
 /// ─────────────────────────────────────────────────────────────────────────
 class OwnerOrder {
   final int id;
@@ -47,13 +42,10 @@ class OwnerOrder {
   });
 
   factory OwnerOrder.fromJson(Map<String, dynamic> j) {
-    // If your backend sends "YYYY-MM-DD HH:mm:ss" without a 'Z' at the end
-    // but it is actually UTC, append 'Z' to force parse as UTC.
     final raw = j['created_at'] as String;
     final createdAtUtc = raw.endsWith('Z')
         ? DateTime.parse(raw)
         : DateTime.parse('${raw}Z');
-        
 
     return OwnerOrder(
       id: j['id'] as int,
@@ -75,131 +67,72 @@ class OwnerOrder {
           : null,
       createdAt: createdAtUtc,
       declineReason: j['cancel_reason_owner'] as String?,
-      
-
-      
     );
   }
 }
 
 /// ─────────────────────────────────────────────────────────────────────────
-/// Orders Screen (Owner App)
-/// ─────────────────────────────────────────────────────────────────────────
-class Orders extends StatefulWidget {
-  const Orders({super.key});
-  @override
-  State<Orders> createState() => _OrdersState();
-}
-
-class _OrdersState extends State<Orders> {
-  int _selectedIndex = 2;
-
-  static const _screens = <Widget>[
-    HomeContent(),
-    MapsContent(),
-    OrdersContent(),
-    ProfileContent(),
-  ];
-
-  void _onItemTapped(int idx) => setState(() => _selectedIndex = idx);
-
-  @override
-  Widget build(BuildContext context) {
-    final showHeader = _selectedIndex != 3;
-    final showNav = _selectedIndex != 3;
-
-    return Scaffold(
-      backgroundColor: const Color(0xffF1EFEC),
-      body: Stack(
-        children: [
-          if (showHeader)
-            const Positioned(top: 50, left: 0, right: 0, child: AppHeader()),
-          Positioned(
-            top: showHeader ? 83 : 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: !showHeader,
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: showNav ? 70 : 0,
-                    child: _screens[_selectedIndex],
-                  ),
-                  if (showNav)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 30,
-                      child: CustomBottomNavBar(
-                        selectedIndex: 2,
-                        onItemTapped: _onItemTapped,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// ─────────────────────────────────────────────────────────────────────────
-/// OrdersContent: TabBar + “Auto‐Cancel” Banner + Order Cards
+/// OrdersContent: TabBar + Order Cards + “Auto‐Cancel” + DELETE
 /// ─────────────────────────────────────────────────────────────────────────
 class OrdersContent extends StatefulWidget {
-  const OrdersContent({super.key});
+  final void Function(int) onNotificationCount;
+
+  const OrdersContent({
+    super.key,
+    required this.onNotificationCount,
+  });
+
   @override
-  State<OrdersContent> createState() => _OrdersContentState();
+  State<OrdersContent> createState() => OrdersContentState();
 }
 
-class _OrdersContentState extends State<OrdersContent>
+/// **Make sure this class name is public** (not `_OrdersContentState`),
+/// so that a `GlobalKey<OrdersContentState>` can call `loadOrders()`.
+class OrdersContentState extends State<OrdersContent>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   bool _loading = true;
   String? _error;
   List<OwnerOrder> _orders = [];
 
-  /// We keep a list of timers so that if this widget is ever disposed,
-  /// we can cancel them and avoid calling setState() afterward.
+  /// Keep a list of timers to cancel them on dispose
   final List<Timer> _cancellationTimers = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this)
+
+    // 4 tabs: Pending / Accepted / Completed / Declined
+    _tabController = TabController(length: 4, vsync: this)
       ..addListener(() {
-        // reload “Accepted” whenever the tab is switched to it:
+        // Reload “Accepted” when its tab is shown
         if (_tabController.index == 1 && !_tabController.indexIsChanging) {
-          _loadOrders();
+          loadOrders();
         }
       });
 
-    _loadOrders();
+    // Initial load
+    loadOrders();
   }
 
   @override
   void dispose() {
-    // Cancel any scheduled timers to avoid leaks or setState after dispose:
-    for (final timer in _cancellationTimers) {
-      timer.cancel();
+    for (final t in _cancellationTimers) {
+      t.cancel();
     }
     _cancellationTimers.clear();
     _tabController.dispose();
     super.dispose();
   }
 
-  // ────────────────────────────────────────────────
-  // 1) Load orders from API, then schedule auto‐cancel
-  // ────────────────────────────────────────────────
-  Future<void> _loadOrders() async {
+  /// ───────────────────────────────────────────────────────────────────────
+  /// Public reload method that Home/Maps can call on pull‐to‐refresh.
+  /// ───────────────────────────────────────────────────────────────────────
+  Future<void> loadOrders() async {
+    debugPrint("🔄 [Orders] loadOrders() called");
     if (!mounted) return;
+
+    // Step 1: start loading
     setState(() {
       _loading = true;
       _error = null;
@@ -211,24 +144,43 @@ class _OrdersContentState extends State<OrdersContent>
       if (ownerId == null) throw 'No owner_id stored; please log in.';
 
       final uri = Uri.parse(
-        'http://192.168.1.22:8000/api/v1/orders/owner?owner_id=$ownerId',
+        'http://192.168.1.36:8000/api/v1/orders/owner?owner_id=$ownerId',
       );
       final resp = await http.get(
         uri,
         headers: {'Accept': 'application/json'},
       );
+
       if (resp.statusCode != 200) {
         throw 'Failed to fetch orders (${resp.statusCode})';
       }
 
       final body = jsonDecode(resp.body) as Map<String, dynamic>;
-      final listJson = (body['data'] as List<dynamic>);
-      _orders = listJson
+      final listJson = body['data'] as List<dynamic>;
+
+      // Parse into our list
+      final List<OwnerOrder> fetched = listJson
           .map((e) => OwnerOrder.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // Once we have the raw orders, schedule auto‐cancellation for each:
+      _orders = fetched;
+
+      // Step 2: schedule auto‐cancel timers
       await _autoCancelStaleOrders(_orders);
+
+      // ─────────────────────────────────────────────────────────
+      // Step 3: compute the “pending” count and fire callback
+      final int pendingCount = _orders
+          .where((o) => o.status.toLowerCase() == 'pending')
+          .length;
+      
+      debugPrint("🔔 [Orders] pendingCount = $pendingCount → calling onNotificationCount");
+
+      // Wrap the callback in setState to guarantee ordering
+      setState(() {
+        widget.onNotificationCount(pendingCount);
+      });
+
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -242,15 +194,11 @@ class _OrdersContentState extends State<OrdersContent>
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 2) Auto‐Cancel Logic:
-  //
-  //    • For each “pending” order, compute expireAt = createdAt + 2 hours.
-  //    • If expireAt ≤ now, add it to `immediateCancelIds` (decline right away).
-  //    • Otherwise, schedule a one‐off Timer to fire at expireAt + 1 second.
-  //    • After declinations, reload via _loadOrders().
-  // ─────────────────────────────────────────────────────────────────────────
+  /// ───────────────────────────────────────────────────────────────────────
+  /// Auto‐cancel stale “pending” orders after 2 hours
+  /// ───────────────────────────────────────────────────────────────────────
   Future<void> _autoCancelStaleOrders(List<OwnerOrder> orders) async {
+    // Cancel any old timers
     for (final t in _cancellationTimers) {
       t.cancel();
     }
@@ -259,13 +207,11 @@ class _OrdersContentState extends State<OrdersContent>
     final nowUtc = DateTime.now().toUtc();
     final twoHours = const Duration(hours: 2);
     final List<int> immediateCancelIds = [];
-    // final seconds = const Duration(seconds: 30);
 
     for (final o in orders) {
       if (o.status.toLowerCase() != 'pending') continue;
-
-      // o.createdAt is already UTC (because we appended 'Z' in fromJson):
-      final createdUtc = o.createdAt.isUtc ? o.createdAt : o.createdAt.toUtc();
+      final createdUtc =
+          o.createdAt.isUtc ? o.createdAt : o.createdAt.toUtc();
       final diff = nowUtc.difference(createdUtc);
 
       if (diff >= twoHours) {
@@ -273,7 +219,8 @@ class _OrdersContentState extends State<OrdersContent>
         continue;
       }
 
-      final expireAtUtc = createdUtc.add(twoHours).add(const Duration(seconds: 1));
+      final expireAtUtc =
+          createdUtc.add(twoHours).add(const Duration(seconds: 1));
       final remaining = expireAtUtc.difference(nowUtc);
       if (remaining.inMilliseconds > 0) {
         final timer = Timer(remaining, () async {
@@ -292,18 +239,18 @@ class _OrdersContentState extends State<OrdersContent>
       }
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
-      await _loadOrders();
+      await loadOrders();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 3) Fetch list of riders (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
+  /// ───────────────────────────────────────────────────────────────────────
+  /// Fetch the list of available riders
+  /// ───────────────────────────────────────────────────────────────────────
   Future<List<Rider>> _fetchRiders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.get(
-      Uri.parse('http://192.168.1.22:8000/api/v1/riders'),
+      Uri.parse('http://192.168.1.36:8000/api/v1/riders'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -316,14 +263,11 @@ class _OrdersContentState extends State<OrdersContent>
     return data.map((j) => Rider.fromJson(j)).toList();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 4) Accept (assign) an order to a rider (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _assignOrderToRider(int orderId, int riderId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.post(
-      Uri.parse('http://192.168.1.22:8000/api/v1/orders/$orderId/accept'),
+      Uri.parse('http://192.168.1.36:8000/api/v1/orders/$orderId/accept'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -337,18 +281,16 @@ class _OrdersContentState extends State<OrdersContent>
         SnackBar(content: Text('Failed to assign: ${resp.statusCode}')),
       );
     } else {
-      await _loadOrders();
+      // After assigning, reload to update pending count & UI
+      await loadOrders();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 5) Decline an order (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _declineOrder(int orderId, String reason) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.post(
-      Uri.parse('http://192.168.1.22:8000/api/v1/orders/$orderId/decline'),
+      Uri.parse('http://192.168.1.36:8000/api/v1/orders/$orderId/decline'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -362,33 +304,28 @@ class _OrdersContentState extends State<OrdersContent>
         SnackBar(content: Text('Failed to decline: ${resp.statusCode}')),
       );
     } else {
-      await _loadOrders();
+      // After declining, reload to update UI & pending count
+      await loadOrders();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 6) Delete an order (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _deleteOrder(int orderId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.delete(
-      Uri.parse('http://192.168.1.22:8000/api/v1/orders/$orderId'),
+      Uri.parse('http://192.168.1.36:8000/api/v1/orders/$orderId'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
       },
     );
     if (resp.statusCode == 204) {
-      await _loadOrders();
+      await loadOrders();
     } else {
       throw 'Delete failed (${resp.statusCode})';
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 7) Dialog to assign → rider (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   void _showPassToRiderDialog(int orderId) {
     showDialog(
       context: context,
@@ -487,7 +424,6 @@ class _OrdersContentState extends State<OrdersContent>
                           : () async {
                               Navigator.of(ctx).pop();
                               await _assignOrderToRider(orderId, selected!.id);
-                              await _loadOrders();
                             },
                       child: const Text(
                         'Submit',
@@ -509,15 +445,11 @@ class _OrdersContentState extends State<OrdersContent>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 8) Dialog to “Decline” with a reason (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   void _showDeclineDialog(int orderId) {
     final reasons = [
       'Out of stock',
       'Too far to deliver',
       'Delivery service not available',
-      
     ];
     String? selectedReason;
 
@@ -573,7 +505,8 @@ class _OrdersContentState extends State<OrdersContent>
                               value: r,
                               child: Text(r,
                                   style: const TextStyle(
-                                      fontSize: 14, fontWeight: FontWeight.w500)),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500)),
                             ))
                         .toList(),
                     onChanged: (v) => setSt(() => selectedReason = v),
@@ -609,9 +542,6 @@ class _OrdersContentState extends State<OrdersContent>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 9) Build each order card
-  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildOrderCard(OwnerOrder o) {
     final mq = MediaQuery.of(context);
     final screenWidth = mq.size.width;
@@ -630,7 +560,7 @@ class _OrdersContentState extends State<OrdersContent>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── header ─────────────────────────────────────────────
+            // header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,7 +627,6 @@ class _OrdersContentState extends State<OrdersContent>
                       ),
                     ),
 
-                    // PENDING: accept/decline buttons
                     if (o.status.toLowerCase() == 'pending') ...[
                       const SizedBox(height: 8),
                       Row(
@@ -734,7 +663,6 @@ class _OrdersContentState extends State<OrdersContent>
                       ),
                     ],
 
-                    // ACCEPTED: show trash icon to delete
                     if (o.status.toLowerCase() == 'accepted') ...[
                       const SizedBox(height: 8),
                       IconButton(
@@ -794,12 +722,10 @@ class _OrdersContentState extends State<OrdersContent>
               ),
             const Spacer(),
 
-            // ─── footer: counts, total & location/delete ─────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // counts
                 Row(
                   children: [
                     if (o.regularCount > 0) ...[
@@ -834,8 +760,6 @@ class _OrdersContentState extends State<OrdersContent>
                   ],
                 ),
 
-                // If not declined ⇒ show “Tap to view location”
-                // If declined   ⇒ show a trash icon to delete
                 if (o.status.toLowerCase() != 'declined') ...[
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -856,8 +780,10 @@ class _OrdersContentState extends State<OrdersContent>
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    Maps(destination: LatLng(o.latitude!, o.longitude!)),
+                                builder: (_) => Maps(
+                                  destination:
+                                      LatLng(o.latitude!, o.longitude!),
+                                ),
                               ),
                             );
                           }
@@ -876,7 +802,6 @@ class _OrdersContentState extends State<OrdersContent>
                     ],
                   )
                 ] else ...[
-                  // Declined: show delete icon instead of “Tap to view location”
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.redAccent),
                     tooltip: 'Remove this declined order',
@@ -918,14 +843,10 @@ class _OrdersContentState extends State<OrdersContent>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // 10) Main build: Title + TabBar + TabBarView
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext ctx) {
     return Column(
       children: [
-        // ─── Title + TabBar (fixed) ─────────────────────────────────
         PreferredSize(
           preferredSize: const Size.fromHeight(77),
           child: Container(
@@ -954,9 +875,15 @@ class _OrdersContentState extends State<OrdersContent>
                         dividerColor: Colors.transparent,
                         labelColor: Colors.black,
                         unselectedLabelColor: Colors.grey,
+                        labelStyle: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
+                        unselectedLabelStyle: const TextStyle(
+                            fontSize: 9, fontWeight: FontWeight.w500),
+                        indicatorSize: TabBarIndicatorSize.label,
                         tabs: const [
                           Tab(text: 'Pending'),
                           Tab(text: 'Accepted'),
+                          Tab(text: 'Completed'),
                           Tab(text: 'Declined'),
                         ],
                       ),
@@ -968,7 +895,6 @@ class _OrdersContentState extends State<OrdersContent>
           ),
         ),
 
-        // ─── TabBarView (scrollable content) ────────────────────────
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -982,10 +908,9 @@ class _OrdersContentState extends State<OrdersContent>
                 SingleChildScrollView(
                   child: Column(
                     children: [
-                      // ─── “Auto‐cancel in 2 hrs” Banner ────────────
                       Container(
                         width: double.infinity,
-                        color: const Color(0xFFFFDCDC), // light pink
+                        color: const Color(0xFFFFDCDC),
                         padding: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 12),
                         child: Row(
@@ -1008,7 +933,6 @@ class _OrdersContentState extends State<OrdersContent>
                         ),
                       ),
 
-                      // ─── Pending orders list ───────────────────────
                       const SizedBox(height: 16),
                       if (_orders
                           .where((o) => o.status.toLowerCase() == 'pending')
@@ -1039,13 +963,23 @@ class _OrdersContentState extends State<OrdersContent>
                 ),
               ),
 
+              // ─ Completed ─────────────────────────────────────────
+              SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  children: _orders
+                      .where((o) => o.status.toLowerCase() == 'completed')
+                      .map(_buildOrderCard)
+                      .toList(),
+                ),
+              ),
+
               // ─ Declined ──────────────────────────────────────────
               SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // “Delete All Declined Orders” button
                     Padding(
                       padding:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1085,17 +1019,18 @@ class _OrdersContentState extends State<OrdersContent>
                               try {
                                 await _deleteOrder(id);
                               } catch (_) {
-                                // ignore failure on a single deletion
+                                // ignore failures
                               }
                             }
                           },
-                          icon: const Icon(Icons.delete_forever, size: 20, color: Color(0xffA62C2C),),
+                          icon: const Icon(Icons.delete_forever,
+                              size: 20, color: Color(0xffA62C2C)),
                           label: const Text(
                             'Delete All',
                             style: TextStyle(color: Color(0xffA62C2C)),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFfffff),
+                            backgroundColor: const Color(0xFFFFFFFF),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -1108,12 +1043,9 @@ class _OrdersContentState extends State<OrdersContent>
 
                     const SizedBox(height: 8),
 
-                    // All declined‐order cards
                     ..._orders
                         .where((o) => o.status.toLowerCase() == 'declined')
-                        .map(_buildOrderCard)
-                        ,
-
+                        .map(_buildOrderCard),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -1126,9 +1058,7 @@ class _OrdersContentState extends State<OrdersContent>
   }
 }
 
-/// ─────────────────────────────────────────────────────────────────────────
 /// Helper: Capitalize string
-/// ─────────────────────────────────────────────────────────────────────────
 extension StringCap on String {
   String capitalize() =>
       isEmpty ? this : this[0].toUpperCase() + substring(1);

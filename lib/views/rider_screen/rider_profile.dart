@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-const _apiBase = 'http://192.168.1.22:8000'; // adjust to your API host
+const _apiBase = 'http://192.168.1.36:8000'; // adjust to your API host
 
 class RiderProfile extends StatefulWidget {
   const RiderProfile({super.key});

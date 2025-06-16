@@ -17,7 +17,7 @@ import 'package:geocoding/geocoding.dart';
 
 
 
-const _apiBase = 'http://192.168.1.22:8000';  // ← your `php artisan serve` host:port
+const _apiBase = 'http://192.168.1.36:8000';  // ← your `php artisan serve` host:port
 
 
 class Profile extends StatefulWidget {
@@ -534,7 +534,7 @@ Future<void> _onEditPhoto() async {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1EFEC),
+      backgroundColor: const Color(0xFFF1EFEC),//1F2937
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -544,7 +544,7 @@ Future<void> _onEditPhoto() async {
               height: h(170) + topPadding,
               padding: EdgeInsets.only(top: topPadding),
               decoration: const BoxDecoration(
-                color: Color(0xFF1F2937),
+                color: Color(0xFF1F2937),//F1EFEC
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(50),
                   bottomRight: Radius.circular(50),
@@ -846,46 +846,59 @@ if (isEditingAddress) ...[
         children: [
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 8),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: fontSize(12),
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, bottom: 8, right: 12),
-                  child: isEditing
-                      ? TextField(
-                          controller: controller,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          style: TextStyle(
-                            fontSize: fontSize(16),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          keyboardType: keyboardType,
-                          autofocus: true,
-                          onSubmitted: (_) => onSave(),
-                    )
-                      : Text(
-                          value,
-                          style: TextStyle(
-                            fontSize: fontSize(16),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                ),
-              ],
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    // label
+    Padding(
+      padding: const EdgeInsets.only(left: 12, top: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: fontSize(12),
+          color: Colors.grey.shade600,
+        ),
+      ),
+    ),
+    // value or editor
+    Padding(
+      padding: const EdgeInsets.only(left: 12, bottom: 8, right: 12),
+      child: isEditing
+          ? TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: keyboardType,
+              onSubmitted: (_) => onSave(),
+              // only for phone field:
+              inputFormatters: label == 'Contact Number'
+                  ? <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ]
+                  : null,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                // only for phone:
+                prefixText: label == 'Contact Number' ? '+63 ' : null,
+              ),
+              style: TextStyle(
+                fontSize: fontSize(16),
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          : Text(
+              // show +63 for phone, otherwise just the raw value
+              label == 'Contact Number' ? '+63$value' : value,
+              style: TextStyle(
+                fontSize: fontSize(16),
+                fontWeight: FontWeight.w500,
+              ),
             ),
+    ),
+  ],
+),
+
           ),
           IconButton(
             icon: Icon(isEditing ? Icons.check : Icons.edit, size: fontSize(18)),

@@ -3,7 +3,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-// import 'package:flutter_map/flutter_map.dart';         // ← for PolylineLayer
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,20 +21,51 @@ class Maps extends StatefulWidget {
   const Maps({super.key, this.destination});
 
   @override
-  State<Maps> createState() => _MapsState();
+  State<Maps> createState() => _MapsScreenState();
 }
 
-class _MapsState extends State<Maps> {
+class _MapsScreenState extends State<Maps> {
   int _selectedIndex = 1;
 
-  late final List<Widget> _screens = [
-    HomeContent(),
-    MapsContent(destination: widget.destination),
-    OrdersContent(),
-    ProfileContent(),
-  ];
+  // Track pending‐order count here as well:
+  int _pendingOrderCount = 0;
+
+  // Global keys to call reload methods:
+  final GlobalKey<HomeContentState> _homeKey = GlobalKey<HomeContentState>();
+  final GlobalKey<MapsContentState> _mapsKey = GlobalKey<MapsContentState>();
+  final GlobalKey<OrdersContentState> _ordersKey =
+      GlobalKey<OrdersContentState>();
 
   void _onItemTapped(int idx) => setState(() => _selectedIndex = idx);
+
+  List<Widget> get _screens => [
+        HomeContent(key: _homeKey),
+        MapsContent(key: _mapsKey, destination: widget.destination),
+        OrdersContent(
+          key: _ordersKey,
+          onNotificationCount: (count) {
+            if (!mounted) return;
+            setState(() {
+              _pendingOrderCount = count;
+            });
+          },
+        ),
+        const ProfileContent(),
+      ];
+
+  Future<void> _refreshAll() async {
+    final futures = <Future>[];
+    if (_homeKey.currentState != null) {
+      futures.add(_homeKey.currentState!.loadStatsForCurrentYear());
+    }
+    if (_mapsKey.currentState != null) {
+      futures.add(_mapsKey.currentState!.loadAll());
+    }
+    if (_ordersKey.currentState != null) {
+      futures.add(_ordersKey.currentState!.loadOrders());
+    }
+    await Future.wait(futures);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +86,17 @@ class _MapsState extends State<Maps> {
                 left: 0,
                 right: 0,
                 bottom: 97,
-                child: _screens[_selectedIndex],
+                child: RefreshIndicator(
+                  onRefresh: _refreshAll,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height - 180,
+                      // Enough to allow pull anywhere
+                      child: _screens[_selectedIndex],
+                    ),
+                  ),
+                ),
               ),
               Positioned(
                 left: 0,
@@ -65,6 +105,7 @@ class _MapsState extends State<Maps> {
                 child: CustomBottomNavBar(
                   selectedIndex: _selectedIndex,
                   onItemTapped: _onItemTapped,
+                  notificationCount: _pendingOrderCount,
                 ),
               ),
             ]),
@@ -126,10 +167,10 @@ class MapsContent extends StatefulWidget {
   const MapsContent({super.key, this.destination});
 
   @override
-  State<MapsContent> createState() => _MapsContentState();
+  State<MapsContent> createState() => MapsContentState();
 }
 
-class _MapsContentState extends State<MapsContent> {
+class MapsContentState extends State<MapsContent> {
   final MapController _mapController = MapController();
   ShopDetail? _mine;
   List<OrderLocation> _orders = [];
@@ -140,7 +181,7 @@ class _MapsContentState extends State<MapsContent> {
   @override
   void initState() {
     super.initState();
-    _loadAll().then((_) {
+    loadAll().then((_) {
       if (widget.destination != null && _mine != null) {
         _getRouteFromApi(
           LatLng(_mine!.lat, _mine!.lng),
@@ -150,7 +191,8 @@ class _MapsContentState extends State<MapsContent> {
     });
   }
 
-  Future<void> _loadAll() async {
+  /// Public reload method that Home can call on pull-to-refresh
+  Future<void> loadAll() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -165,7 +207,7 @@ class _MapsContentState extends State<MapsContent> {
 
       // 1️⃣ load your station
       final stationRes = await http.get(
-        Uri.parse('http://192.168.1.22:8000/api/v1/refill-stations'),
+        Uri.parse('http://192.168.1.36:8000/api/v1/refill-stations'),
         headers: {'Accept': 'application/json'},
       );
       if (stationRes.statusCode != 200) {
@@ -183,19 +225,22 @@ class _MapsContentState extends State<MapsContent> {
       // 2️⃣ load your orders
       final ordersRes = await http.get(
         Uri.parse(
-            'http://192.168.1.22:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
+            'http://192.168.1.36:8000/api/v1/orders/owner?owner_id=$myOwnerId'),
         headers: {'Accept': 'application/json'},
       );
       if (ordersRes.statusCode != 200) {
         throw 'Orders failed (${ordersRes.statusCode})';
       }
       final data = jsonDecode(ordersRes.body)['data'] as List;
-_orders = data
-  .where((j) => j['status'] == 'pending' && j['latitude'] != null && j['longitude'] != null)
-  .map((j) => OrderLocation.fromJson(j as Map<String, dynamic>))
-  .toList();
+      _orders = data
+          .where((j) =>
+              j['status'] == 'pending' &&
+              j['latitude'] != null &&
+              j['longitude'] != null)
+          .map((j) => OrderLocation.fromJson(j as Map<String, dynamic>))
+          .toList();
 
-      // center on your shop
+      // Center on your shop
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _mapController.move(
           LatLng(_mine!.lat, _mine!.lng),
@@ -261,7 +306,11 @@ _orders = data
         if (_routePoints.isNotEmpty)
           PolylineLayer(
             polylines: [
-              Polyline(points: _routePoints, strokeWidth: 12, color: Color(0xFF455567)),
+              Polyline(
+                points: _routePoints,
+                strokeWidth: 12,
+                color: const Color(0xFF455567),
+              ),
             ],
           ),
 
@@ -279,12 +328,16 @@ _orders = data
 
         // ▶︎ order markers
         MarkerLayer(
-          markers: _orders.map((o) => Marker(
-                point: LatLng(o.lat, o.lng),
-                width: 50,
-                height: 50,
-                child: Image.asset('images/customer_tag1.png'),
-              )).toList(),
+          markers: _orders
+              .map(
+                (o) => Marker(
+                  point: LatLng(o.lat, o.lng),
+                  width: 50,
+                  height: 50,
+                  child: Image.asset('images/customer_tag1.png'),
+                ),
+              )
+              .toList(),
         ),
       ],
     );

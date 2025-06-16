@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class CustomBottomNavBar extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemTapped;
+  final int notificationCount; // ← new
 
   const CustomBottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onItemTapped,
+    this.notificationCount = 0, // default to zero
   });
 
   @override
@@ -18,9 +20,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
   // List of icons for the navbar
   final List<IconData> navIcons = [
     Icons.grid_view_rounded, // Home/Daschboard icon
-    Icons.location_pin, // Map/Navigation icon
-    Icons.shopping_cart, // Cart/Shop icon
-    Icons.person_2, // Profile icon
+    Icons.location_pin,      // Map/Navigation icon
+    Icons.shopping_cart,     // Cart/Shop icon
+    Icons.person_2,          // Profile icon
   ];
 
   @override
@@ -42,7 +44,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
       height: navBarHeight,
       margin: const EdgeInsets.symmetric(horizontal: 20.0),
       decoration: BoxDecoration(
-        color: Color(0xFFF5F7F8),
+        color: const Color(0xFFF5F7F8),
         borderRadius: BorderRadius.circular(navBarHeight / 2),
         boxShadow: const [
           BoxShadow(
@@ -65,6 +67,8 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
 
   Widget _buildNavItem(IconData icon, int index, double iconSize) {
     final bool isSelected = widget.selectedIndex == index;
+    final bool isCart = index == 2; // cart icon sits at position 2
+    final int count = widget.notificationCount;
 
     return GestureDetector(
       onTap: () => widget.onItemTapped(index),
@@ -77,10 +81,46 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
             color: isSelected ? Colors.grey.shade200 : Colors.transparent,
             borderRadius: BorderRadius.circular(iconSize / 2),
           ),
-          child: Icon(
-            icon,
-            color: isSelected ? Color(0xff1F2937) : Colors.grey,
-            size: iconSize,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(
+                child: Icon(
+                  icon,
+                  color: isSelected ? const Color(0xff1F2937) : Colors.grey,
+                  size: iconSize,
+                ),
+              ),
+
+              // If this is the cart icon (index 2) and notificationCount > 0:
+              if (isCart && count > 0)
+                Positioned(
+                  top: -4,
+                  right: -6,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: iconSize * 0.6,
+                      minHeight: iconSize * 0.6,
+                    ),
+                    child: Center(
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: iconSize * 0.45,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
